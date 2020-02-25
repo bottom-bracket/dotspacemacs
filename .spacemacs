@@ -32,7 +32,8 @@ This function should only modify configuration layer settings."
 
    ;; List of configuration layers to load.
    dotspacemacs-configuration-layers
-   '(
+   '(csv
+     javascript
      ;; ----------------------------------------------------------------
      ;; Example of useful layers you may want to use right away.
      ;; Uncomment some layer names and press `SPC f e R' (Vim style) or
@@ -47,17 +48,23 @@ This function should only modify configuration layer settings."
      html
      helm
      pandoc
-     auto-completion
-     speed-reading
+     (auto-completion :variables
+                      auto-completion-complete-with-key-sequence "jk"
+                      auto-completion-enable-snippets-in-popup t
+                      auto-completion-enable-help-tooltip t
+                      spacemacs-default-company-backends '(company-files company-capf)
+                      )
      better-defaults
      emacs-lisp
+     (multiple-cursors :variables multiple-cursors-backend 'evil-mc)
      git
-     julia
+     (julia :variables julia-mode-enable-lsp nil)
      markdown
      games
      spotify
      treemacs
      neotree
+     graphviz
      ranger
      org
      finance
@@ -65,18 +72,23 @@ This function should only modify configuration layer settings."
                 auto-insert-query nil )
      shell-scripts
      google-calendar
+     dap
      (shell :variables
             shell-default-height 30
             shell-default-position 'bottom)
-     (spell-checking :variables spell-checking-enable-auto-dictionary t)
+     (spell-checking :variables spell-checking-enable-auto-dictionary t
+                     spell-checking-enable-by-default nil
+                     =enable-flyspell-auto-completion= t)
      syntax-checking
      (c-c++ :variables c-c++-enable-clang-support t)
      semantic
+     lsp
      (python :variables
              python-backend 'anaconda
              python-formatter 'yapf
-             python-format-on-save t
-             python-sort-imports-on-save t )
+             python-format-on-save nil
+             ;;python-sort-imports-on-save t
+             )
      jupyter
      treemacs
      colors
@@ -96,12 +108,17 @@ This function should only modify configuration layer settings."
    ;; Also include the dependencies as they will not be resolved automatically.
    dotspacemacs-additional-packages '(org-chef
                                       org-noter
+                                      simple-httpd
+                                      websocket
                                       ox-reveal
                                       ox-hugo
                                       ob-async
                                       sphinx-doc
                                       julia-repl
                                       polymode
+                                      dash
+                                      s
+                                      cdlatex
                                       )
 
    ;; A list of packages that cannot be updated.
@@ -240,7 +257,7 @@ It should only modify the values of Spacemacs settings."
    ;; refer to the DOCUMENTATION.org for more info on how to create your own
    ;; spaceline theme. Value can be a symbol or list with additional properties.
    ;; (default '(spacemacs :separator wave :separator-scale 1.5))
-   dotspacemacs-mode-line-theme 'spacemacs
+   dotspacemacs-mode-line-theme '(spacemacs :separator wave :separator-scale 1.5)
 
    ;; If non-nil the cursor color matches the state color in GUI Emacs.
    ;; (default t)
@@ -493,8 +510,6 @@ This function is called immediately after `dotspacemacs/init', before layer
 configuration.
 It is mostly for variables that should be set before packages are loaded.
 If you are unsure, try setting them in `dotspacemacs/user-config' first."
-
-
   )
 
 (defun dotspacemacs/user-load ()
@@ -510,12 +525,25 @@ This function is called at the very end of Spacemacs startup, after layer
 configuration.
 Put your configuration code here, except for variables that should be set
 before packages are loaded."
+  ;; add personal load path
+  (add-to-list 'load-path "~/.emacs.d/private/lisp/org-graph-view")
   ;; PYTHON
   (pyenv-mode)
   (add-to-list 'load-path "~/.pyenv/shims/jupyter")
   (add-to-list 'load-path "~/.pyenv/shims")
+  (add-to-list 'exec-path "~/.pyenv/shims")
   (when (executable-find "ipython")
     (setq python-shell-interpreter "ipython"))
+  (setq flycheck-python-pycompile-executable "python3")
+  (add-hook 'python-mode-hook 'anaconda-eldoc-mode)
+
+  ;; enable proselint in textual modes:
+  (add-hook 'markdown-mode-hook #'flycheck-mode)
+  (add-hook 'text-mode-hook #'flycheck-mode)
+  (add-hook 'message-mode-hook #'flycheck-mode)
+  (add-hook 'org-mode-hook #'flycheck-mode)
+
+
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; ORG
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -627,12 +655,14 @@ before packages are loaded."
     (switch-to-buffer (get-buffer-create "*scratch*"))
     (org-capture))
 
+  ;; Misc
+  (require 'org-graph-view)
   ;; org-babel
   (setq org-src-fontify-natively t
-        org-src-window-setup 'current-window
+        org-src-window-setup 'other-window
         org-src-strip-leading-and-trailing-blank-lines t
-        org-src-preserve-indentation t
-        org-src-tab-acts-natively t)
+        org-src-preserve-indentation nil
+        org-src-tab-acts-natively nil)
 
   (require 'ob-async)
   (setq inferior-julia-program-name "/bin/julia")
@@ -641,7 +671,7 @@ before packages are loaded."
             '(lambda ()
                (setq inferior-julia-program-name "/bin/julia")))
 
-  ;; (setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
+  (setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
 
   (with-eval-after-load 'org
     (setq org-babel-load-languages
@@ -652,20 +682,52 @@ before packages are loaded."
                     (shell . t)
                     (julia . t)
                     (python . t)
-                    (jupyter . t)
                     ;; jupyter has to be the last element
-                    (jupyter . t))))
+                    (jupyter . t)
+                    )))
   (spacemacs//org-babel-do-load-languages))
   ;;(setq python-shell-completion-native-enable nil)
   (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
-  (setq org-babel-default-header-args '((:async . "true")(:eval . "never-export")))
+  (setq org-babel-default-header-args '((:eval . "never-export")))
+  (add-to-list 'org-babel-default-header-args:python
+               '(:async . "yes"))
   (org-babel-jupyter-override-src-block "python")
-  ;; others
-  ;;'(add-to-list 'company-backends 'company-ob-ipython)
-  ;;'(add-to-list 'org-latex-minted-langs '(ipython "python"))
-  (defun autoinsert-yas-expand()
-    "Replace text in yasnippet template."
-    (yas-expand-snippet (buffer-string) (point-min) (point-max)))
+  (setq jupyter-pop-up-frame t)
+
+
+  ;; org export
+  (setq org-image-actual-width nil)
+     (require 'ox-extra)
+     (ox-extras-activate '(latex-header-blocks ignore-headlines))
+  ;; latex koma-article
+  (with-eval-after-load "ox-latex"
+    (add-to-list 'org-latex-classes
+                 '("koma-article" "\\documentclass{scrartcl}"
+                   ("\\section{%s}" . "\\section*{%s}")
+                   ("\\subsection{%s}" . "\\subsection*{%s}")
+                   ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                   ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                   ("\\subparagraph{%s}" . "\\subparagraph*{%s}"))))
+
+
+  (add-to-list 'org-latex-classes
+               '("mimosis"
+                 "\\documentclass{mimosis}
+  [NO-DEFAULT-PACKAGES]
+  [PACKAGES]
+  [EXTRA]"
+                 ("\\chapter{%s}" . "\\addchap{%s}")
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+
+  (setq org-reveal-root "https://cdn.jsdelivr.net/npm/reveal.js")
+  ;;;;;;
+   (defun autoinsert-yas-expand()
+     "Replace text in yasnippet template."
+     (yas-expand-snippet (buffer-string) (point-min) (point-max)))
    (define-auto-insert "\\.org$" ["~/.emacs.d/private/autoinsert/org_mode_header_full.org" autoinsert-yas-expand])
 
 
@@ -730,7 +792,8 @@ before packages are loaded."
         org-noter-notes-search-path "~/Documents/PhD/Literature.bib/notes"
         )
   (setq bibtex-completion-find-additional-pdfs t)
-
+  ;; latex compiler
+  (setq org-latex-pdf-process (list "latexmk -shell-escape -bibtex -f -pdf %f"))
 
   (defun org-noter-init-pdf-view ()
     (pdf-view-fit-page-to-window)
@@ -747,6 +810,14 @@ before packages are loaded."
           "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
   (setq org-latex-logfiles-extensions (quote ("lof" "lot" "tex" "aux" "idx" "log" "out" "toc" "nav" "snm" "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "pygtex" "pygstyle")))
 
+  ;; LATEX
+  (add-hook 'org-mode-hook 'turn-on-org-cdlatex)
+  (add-to-list 'org-latex-packages-alist
+               '("" "tikz" t))
+
+  (eval-after-load "preview"
+    '(add-to-list 'preview-default-preamble "\\PreviewEnvironment{tikzpicture}" t))
+  (setq org-latex-create-formula-image-program 'imagemagick)
   ;; C
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   (defun clang-format-buffer-smart ()
@@ -764,7 +835,7 @@ before packages are loaded."
   (add-hook 'doc-view-mode-hook 'auto-revert-mode)
 
   ;; Completion
-
+  (global-company-mode)
 
   (setq yas-triggers-in-field t)
   '(setq auto-completion-enable-help-tooltip t)
@@ -773,7 +844,43 @@ before packages are loaded."
   (define-key evil-normal-state-map (kbd "zn") 'hs-hide-level)
 
   '(add-hook 'vhdl-mode-hook (lambda () (vhdl-tools-mode 1)))
+
+
+  ;; faces
+  (custom-set-faces
+   '(company-tooltip-common
+     ((t (:inherit company-tooltip :weight bold :underline nil))))
+   '(company-tooltip-common-selection
+     ((t (:inherit company-tooltip-selection :weight bold :underline nil)))))
+
+  (let ((path (shell-command-to-string ". ~/.bash_profile; echo -n $PATH")))
+    (setenv "PATH" path)
+    (setq exec-path
+          (append
+           (split-string-and-unquote path ":")
+           exec-path)))
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
 ;; auto-generate custom variable definitions.
+(defun dotspacemacs/emacs-custom-settings ()
+  "Emacs custom settings.
+This is an auto-generated function, do not modify its content directly, use
+Emacs customize menu instead.
+This function is called at the very end of Spacemacs initialization."
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   (quote
+    (zenburn-theme zen-and-art-theme yatemplate yasnippet-snippets yapfify xterm-color ws-butler writeroom-mode winum white-sand-theme which-key web-mode web-beautify vterm volatile-highlights vi-tilde-fringe uuidgen use-package unfill underwater-theme ujelly-theme typit twilight-theme twilight-bright-theme twilight-anti-bright-theme toxi-theme toc-org terminal-here tao-theme tangotango-theme tango-plus-theme tango-2-theme tagedit systemd symon symbol-overlay sunny-day-theme sudoku sublime-themes subatomic256-theme subatomic-theme string-inflection stickyfunc-enhance srefactor spotify sphinx-doc spaceline-all-the-icons spacegray-theme soothe-theme solarized-theme soft-stone-theme soft-morning-theme soft-charcoal-theme smyx-theme smeargle slim-mode shell-pop seti-theme scss-mode sass-mode reverse-theme restart-emacs rebecca-theme ranger rainbow-mode rainbow-identifiers rainbow-delimiters railscasts-theme pytest pyenv-mode py-isort purple-haze-theme pug-mode professional-theme prettier-js popwin polymode planet-theme pippel pipenv pip-requirements phoenix-dark-pink-theme phoenix-dark-mono-theme persp-mode pcre2el password-generator paradox pandoc-mode pacmacs ox-reveal ox-pandoc overseer orgit organic-green-theme org-ref org-projectile org-present org-pomodoro org-noter org-mime org-gcal org-download org-cliplink org-chef org-bullets org-brain open-junk-file omtose-phellack-theme oldlace-theme occidental-theme obsidian-theme ob-async nodejs-repl noctilux-theme neotree naquadah-theme nameless mwim mustang-theme multi-term move-text monokai-theme monochrome-theme molokai-theme moe-theme mmm-mode minimal-theme material-theme markdown-toc majapahit-theme magit-svn magit-section magit-gitflow madhat2r-theme macrostep lush-theme lsp-ui lsp-python-ms lsp-julia lorem-ipsum livid-mode live-py-mode link-hint light-soap-theme kaolin-themes jupyter julia-repl json-navigator json-mode js2-refactor js-doc jbeans-theme jazz-theme ir-black-theme insert-shebang inkpot-theme indent-guide importmagic impatient-mode hybrid-mode hungry-delete hl-todo highlight-parentheses highlight-numbers highlight-indentation heroku-theme hemisu-theme helm-xref helm-themes helm-swoop helm-spotify-plus helm-rtags helm-pydoc helm-purpose helm-projectile helm-org-rifle helm-org helm-mode-manager helm-make helm-lsp helm-ls-git helm-gitignore helm-git-grep helm-flx helm-descbinds helm-css-scss helm-company helm-c-yasnippet helm-ag hc-zenburn-theme gruvbox-theme gruber-darker-theme grandshell-theme gotham-theme google-translate google-c-style golden-ratio gnuplot gitignore-templates gitconfig-mode gitattributes-mode git-timemachine git-messenger git-link gh-md gandalf-theme fuzzy font-lock+ flyspell-correct-helm flycheck-ycmd flycheck-rtags flycheck-pos-tip flycheck-package flycheck-ledger flycheck-elsa flycheck-bashate flx-ido flatui-theme flatland-theme fish-mode fill-column-indicator farmhouse-theme fancy-battery eziam-theme eyebrowse expand-region exotica-theme evil-visualstar evil-visual-mark-mode evil-unimpaired evil-tutor evil-textobj-line evil-surround evil-org evil-numbers evil-nerd-commenter evil-mc evil-matchit evil-magit evil-lisp-state evil-lion evil-ledger evil-indent-plus evil-iedit-state evil-goggles evil-exchange evil-escape evil-ediff evil-cleverparens evil-args evil-anzu eval-sexp-fu espresso-theme eshell-z eshell-prompt-extras esh-help emmet-mode elisp-slime-nav editorconfig dumb-jump dracula-theme dotenv-mode doom-themes doom-modeline django-theme disaster diminish devdocs define-word darktooth-theme darkokai-theme darkmine-theme darkburn-theme dap-mode dakrone-theme cython-mode cyberpunk-theme csv-mode cquery cpp-auto-include company-ycmd company-web company-tern company-statistics company-shell company-rtags company-reftex company-quickhelp company-lsp company-c-headers company-auctex company-anaconda column-enforce-mode color-theme-sanityinc-tomorrow color-theme-sanityinc-solarized color-identifiers-mode clues-theme clean-aindent-mode clang-format chocolate-theme cherry-blossom-theme centered-cursor-mode ccls calfw busybee-theme bubbleberry-theme blacken birds-of-paradise-plus-theme badwolf-theme auto-yasnippet auto-highlight-symbol auto-dictionary auto-compile auctex-latexmk apropospriate-theme anti-zenburn-theme ample-zen-theme ample-theme alect-themes aggressive-indent afternoon-theme ace-link ace-jump-helm-line ac-ispell 2048-game))))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(company-tooltip-common ((t (:inherit company-tooltip :weight bold :underline nil))))
+ '(company-tooltip-common-selection ((t (:inherit company-tooltip-selection :weight bold :underline nil)))))
+)
