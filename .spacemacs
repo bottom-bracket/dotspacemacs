@@ -58,7 +58,6 @@ This function should only modify configuration layer settings."
      emacs-lisp
      (multiple-cursors :variables multiple-cursors-backend 'evil-mc)
      git
-     (julia :variables julia-mode-enable-lsp nil)
      markdown
      games
      spotify
@@ -82,7 +81,8 @@ This function should only modify configuration layer settings."
      syntax-checking
      (c-c++ :variables c-c++-enable-clang-support t)
      semantic
-     lsp
+     ;;lsp
+     (julia :variables julia-mode-enable-lsp nil)
      (python :variables
              python-backend 'anaconda
              python-formatter 'yapf
@@ -119,7 +119,12 @@ This function should only modify configuration layer settings."
                                       dash
                                       s
                                       cdlatex
-                                      )
+                                      (beancount :location (recipe
+                                                            :fetcher bitbucket
+                                                            :repo "blais/beancount"
+                                                            :files ("editors/emacs/beancount.el")))
+                                     )
+
 
    ;; A list of packages that cannot be updated.
    dotspacemacs-frozen-packages '()
@@ -532,6 +537,7 @@ before packages are loaded."
   (add-to-list 'load-path "~/.pyenv/shims/jupyter")
   (add-to-list 'load-path "~/.pyenv/shims")
   (add-to-list 'exec-path "~/.pyenv/shims")
+  (add-to-list 'python-shell-extra-pythonpaths  "/home/philip/programs/gmsh/api")
   (when (executable-find "ipython")
     (setq python-shell-interpreter "ipython"))
   (setq flycheck-python-pycompile-executable "python3")
@@ -665,11 +671,15 @@ before packages are loaded."
         org-src-tab-acts-natively nil)
 
   (require 'ob-async)
-  (setq inferior-julia-program-name "/bin/julia")
+  (add-to-list 'load-path "~/programs/julia")
+  (add-to-list 'exec-path "~/programs/julia")
+  (add-hook 'julia-mode-hook 'julia-repl-mode)
+  (setq inferior-julia-program-name "/home/philip/programs/julia/julia")
   ;; This needs to be repeated for ob-async
+
   (add-hook 'ob-async-pre-execute-src-block-hook
             '(lambda ()
-               (setq inferior-julia-program-name "/bin/julia")))
+               (setq inferior-julia-program-name "/home/philip/programs/julia/julia")))
 
   (setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
 
@@ -845,6 +855,9 @@ before packages are loaded."
 
   '(add-hook 'vhdl-mode-hook (lambda () (vhdl-tools-mode 1)))
 
+
+  ;; Automatically open .beancount files in beancount-mode.
+  (add-to-list 'auto-mode-alist '("\\.beancount$" . beancount-mode))
 
   ;; faces
   (custom-set-faces
