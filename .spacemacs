@@ -65,7 +65,11 @@ This function should only modify configuration layer settings."
      neotree
      graphviz
      ranger
-     org
+     (org :variables
+          org-enable-reveal-js-support t
+          org-enable-hugo-support t
+          org-enable-sticky-header t
+          org-enable-epub-support t)
      finance
      (templates :variables templates-private-directory "~/.emacs.d/private/templates"
                 auto-insert-query nil )
@@ -123,6 +127,7 @@ This function should only modify configuration layer settings."
                                                             :fetcher bitbucket
                                                             :repo "blais/beancount"
                                                             :files ("editors/emacs/beancount.el")))
+                                      yasnippet-snippets
                                      )
 
 
@@ -262,7 +267,7 @@ It should only modify the values of Spacemacs settings."
    ;; refer to the DOCUMENTATION.org for more info on how to create your own
    ;; spaceline theme. Value can be a symbol or list with additional properties.
    ;; (default '(spacemacs :separator wave :separator-scale 1.5))
-   dotspacemacs-mode-line-theme '(spacemacs :separator wave :separator-scale 1.5)
+   dotspacemacs-mode-line-theme '(vim-powerline :separator wave :separator-scale 1.5)
 
    ;; If non-nil the cursor color matches the state color in GUI Emacs.
    ;; (default t)
@@ -661,6 +666,21 @@ before packages are loaded."
     (switch-to-buffer (get-buffer-create "*scratch*"))
     (org-capture))
 
+  ;; Brain
+  (setq org-brain-path "~/Documents/org/brain")
+  ;; For Evil users
+  (with-eval-after-load 'evil
+    (evil-set-initial-state 'org-brain-visualize-mode 'emacs))
+  :config
+  (setq org-id-track-globally t)
+  (setq org-id-locations-file "~/.emacs.d/.org-id-locations")
+  (push '("b" "Brain" plain (function org-brain-goto-end)
+          "* %i%?" :empty-lines 1)
+        org-capture-templates)
+  (setq org-brain-visualize-default-choices 'all)
+  (setq org-brain-title-max-length 12)
+  (setq org-brain-include-file-entries nil
+        org-brain-file-entries-use-title nil)
   ;; Misc
   (require 'org-graph-view)
   ;; org-babel
@@ -698,7 +718,7 @@ before packages are loaded."
   (spacemacs//org-babel-do-load-languages))
   ;;(setq python-shell-completion-native-enable nil)
   (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
-  (setq org-babel-default-header-args '((:eval . "never-export")))
+  (setq org-babel-default-header-args '((:eval . "never-export") (:results . "replace")))
   (add-to-list 'org-babel-default-header-args:python
                '(:async . "yes"))
   (org-babel-jupyter-override-src-block "python")
@@ -853,11 +873,12 @@ before packages are loaded."
 
   (define-key evil-normal-state-map (kbd "zn") 'hs-hide-level)
 
-  '(add-hook 'vhdl-mode-hook (lambda () (vhdl-tools-mode 1)))
+  (add-hook 'vhdl-mode-hook (lambda () (vhdl-tools-mode 1)))
 
 
   ;; Automatically open .beancount files in beancount-mode.
   (add-to-list 'auto-mode-alist '("\\.beancount$" . beancount-mode))
+  (add-hook 'beancount-mode-hook 'outline-minor-mode)
 
   ;; faces
   (custom-set-faces
