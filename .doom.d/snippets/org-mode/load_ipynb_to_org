@@ -1,0 +1,6 @@
+# -*- mode: snippet -*-
+# name: load_ipynb_to_org
+# key: importipynb
+# --
+
+#+CALL: jupyter-to-org-current(path_ipymd=[[${1:link}]] , path_org=[[${2:link}]])

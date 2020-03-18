@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: Julia block short
+# key: julia
+# --
+#+NAME: ${1:`(make-temp-name "")`}
+#+begin_src jupyter-julia :session ${2:`(file-name-base (buffer-file-name))`} :exports ${3:$$(yas-choose-value '("both" "results" "code" "none"))} :tangle ./src/$2.jl
+$0
+#+end_src

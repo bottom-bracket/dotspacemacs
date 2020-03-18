@@ -49,3 +49,35 @@
 ;; This is required for some packages whose default branch isn't 'master' (which
 ;; our package manager can't deal with; see raxod502/straight.el#279)
 ;(package! builtin-package :recipe (:branch "develop"))
+
+
+(package! flycheck-popup-tip :disable t)
+
+(package! beancount :recipe (:local-repo "~/programs/beancount/editors/emacs"
+                                         :files ("beancount.el")))
+;; * Writing
+(package! academic-phrases)
+
+;; * Org
+(package! org-chef)
+(package! ox-reveal)
+(package! ob-async)
+(package! org-gcal)
+(package! cdlatex)
+;; * Org Ref
+(package! org-ref)
+(package! org-noter)
+;; Python
+(package! lsp-python-ms)
+;;
+;; * Other
+(package! simple-httpd)
+(package! websocket)
+(package! ranger)
+
+(package! evil-goggles)
+(package! evil-collection)
+(package! popup-kill-ring)
+
+(package! helm-org-rifle)
+(package! company-tabnine)

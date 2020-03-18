@@ -1,0 +1,16 @@
+# ## `(upcase (file-name-nondirectory (file-name-sans-extension (buffer-file-name))))`
+# Created: `(format-time-string "%e %B %Y")`
+#+title: ${1:Title}
+#+author: `user-full-name`
+#+email: ${2:$$(yas-choose-value '("philip.heringlake@neel.cnrs.fr" "p.heringlake@mailbox.org"))}
+#+SEQ_TODO: TODO(t@/!) NEXT(n/!) WAITING(w@/!) SOMEDAY(s/!) | DONE(d@) FORWARDED(w@) CANCELLED(c@!) FAILED(f/@!)
+#+TAGS: IMPORTANT(i)
+# #+SETUPFILE: https://fniessen.github.io/org-html-themes/setup/theme-readtheorg.setup
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="https://gongzhitaao.org/orgcss/org.css"/>
+#+OPTIONS: H:5 num:t toc:t \n:nil @:t ::t |:t ^:{} _:{} *:t TeX:t LaTeX:t
+#+STARTUP: overview noinlineimages
+#+PROPERTY: header-args :eval never-export
+#+EXCLUDE_TAGS: noexport
+#+LaTeX_CLASS: koma-article
+
+$0

@@ -1,0 +1,14 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: ipython-figure
+# key: pyimg
+# --
+#+NAME: ${1:`(make-temp-name "")`}
+#+BEGIN_SRC jupyter-python ${2: :session ${3:`(file-name-base (buffer-file-name))`}} :var figurename="./resources/$1.png" :exports none :tangle ./src/$3.py
+$0
+#+END_SRC
+#+CAPTION: $5
+#+NAME: fig:$1
+#+ATTR_ORG: :width 600
+#+ATTR_HTML: :width 800px
+#+ATTR_LATEX: :width 0.95\textwidth
+[[file:./resources/$1.png]]

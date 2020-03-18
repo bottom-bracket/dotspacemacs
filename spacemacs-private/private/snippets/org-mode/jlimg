@@ -1,0 +1,12 @@
+# -*- mode: snippet; require-final-newline: nil -*-
+# name: Julia with image
+# key: jlimg
+# --
+#+NAME: ${1:`(make-temp-name "")`}
+#+BEGIN_SRC jupyter-julia ${2: :session ${3:`(file-name-base (buffer-file-name))`}} :var figurename="./resources/$1.png" :exports ${4:$$(yas-choose-value '("code" "none"))} :results none :tangle ./src/$3.jl
+$0
+#+END_SRC
+#+CAPTION: $6
+#+LABEL: fig:$1
+#+ATTR_LATEX: :width 0.5\textwidth
+[[file:./resources/$1.png]]
