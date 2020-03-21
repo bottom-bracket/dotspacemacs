@@ -13,10 +13,11 @@
 ;; They all accept either a font-spec, font string ("Input Mono-12"), or xlfd
 ;; font string. You generally only need these two:
 (setq doom-font (font-spec :family "monospace" :size 14))
+(setq doom-big-font (font-spec :family "monospace" :size 20))
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-one)
+(setq doom-theme 'doom-acario-light)
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
 (setq org-directory "~/Documents/org/")
@@ -27,11 +28,6 @@
       delete-by-moving-to-trash t
       trash-directory "~/.local/share/Trash/files"
 )
-(setq auto-save-default t
-      auto-save-timeout 10
-      auto-save-interval 180)
-(setq auto-save-file-name-transforms
-  `((".*" "~/.emacs-saves/" t)))
 (use-package! popup-kill-ring)
 (use-package! evil-collection
 ;    :after
@@ -39,6 +35,11 @@
     :config
     (evil-collection-init)
   )
+
+(use-package! evil-surround
+  :ensure t
+  :config
+  (global-evil-surround-mode 1))
 (load! "bindings/spacemacs.el")
 (map! :map org-mode-map
      :localleader
@@ -67,27 +68,86 @@
            )
        )
 ))
+(use-package! helm-files
+  :bind
+  (:map helm-find-files-map
+   ("C-h" . helm-find-files-up-one-level)
+   ("C-l" . helm-execute-persistent-action))
+)
+(defun org-get-target-headline (&optional targets prompt)
+  "Prompt for a location in an org file and jump to it.
+
+This is for promping for refile targets when doing captures.
+Targets are selected from `org-refile-targets'. If TARGETS is
+given it temporarily overrides `org-refile-targets'. PROMPT will
+replace the default prompt message.
+
+If CAPTURE-LOC is is given, capture to that location instead of
+prompting."
+  (let ((org-refile-targets (or targets org-refile-targets))
+        (prompt (or prompt "Capture Location")))
+    (if org-capture-overriding-marker
+        (org-goto-marker-or-bmk org-capture-overriding-marker)
+      (org-refile t nil nil prompt)))
+  )
+
+(defun org-ask-location ()
+  (let* ((org-refile-targets '((nil :maxlevel . 9)))
+         (hd (condition-case nil
+                 (car (org-refile-get-location "Headline" nil t))
+               (error (car org-refile-history)))))
+    (goto-char (point-min))
+    (outline-next-heading)
+    (if (re-search-forward
+         (format org-complex-heading-regexp-format (regexp-quote hd))
+        nil t)
+      (goto-char (point-at-bol))
+      (goto-char (point-max))
+      (or (bolp) (insert "\n"))
+      (insert "* " hd "\n")))
+    (end-of-line))
+;; (setq org-outline-path-complete-in-steps nil)         ; Refile in a single go
+(after! org
+  (setq org-refile-use-outline-path nil))                  ; Show full paths for refiling
 (defun insert-todays-date (arg)
   (interactive "P")
   (insert (if arg
               (format-time-string "%d-%m-%Y")
             (format-time-string "%Y-%m-%d"))))
 (global-set-key (kbd "C-c d") 'insert-todays-date)
-(use-package! company-tabnine
-  )
-(add-to-list 'company-backends #'company-tabnine)
+;; (use-package! company-tabnine
+;;   )
+
+(use-package! company-math
+  :after TeX-mode
+  :config
+  (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
+  (set-company-backend! 'TeX-mode 'company-latex-commands)
+  (setq company-tooltip-align-annotations t)
+  (setq company-math-allow-latex-symbols-in-faces t))
+
+;;(add-to-list 'company-backends #'company-tabnine)
 (set-company-backend! 'org-mode
-    'company-tabnine ;all purpose machine learning autocompleter
-    'company-files          ; files & directory
-         'company-keywords       ; keywords
-         'company-capf
-         'company-ispell
-         'company-yasnippet)
-(setq +lsp-company-backend '(company-lsp :with company-tabnine :separate))
+  '(:separated
+    company-yasnippet
+    company-files          ; files & directory
+    company-keywords       ; keywords
+    company-capf
+    company-ispell
+    company-math-symbols-latex
+    company-latex-commands
+    ))
+    ;; company-tabnine ; . #1=(:with company-yasnippet)) ;all purpose machine learning autocompleter
+;; (setq +lsp-company-backend '(company-lsp :with company-tabnine :separate))
 ;; Trigger completion immediately.
 (setq company-idle-delay 0)
 ;; Number the candidates (use M-1, M-2 etc to select completions).
 (setq company-show-numbers t)
+(map! :map company-active-map
+      "<tab>" nil
+      "C-SPC" 'company-complete-common-or-cycle )
+(setq helm-ff-auto-update-initial-value 1
+      )
 (after! latex
 (add-to-list
   'TeX-command-list
@@ -104,13 +164,16 @@
 (add-hook 'term-mode-hook #'hide-mode-line-mode)
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
 (use-package! helm-org-rifle)
+(after! org
 (setq org-directory "/home/philip/Documents/org/"
       org-archive-location (concat org-directory "archive/%s::")
-      +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg"))
+      +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg")))
 (after! org
   (setq org-log-done 'time))
 (after! org
 (add-hook 'org-mode-hook 'turn-on-org-cdlatex))
+(after! evil-org
+  (remove-hook 'org-tab-first-hook #'+org-cycle-only-current-subtree-h))
 (after! org
   (setq org-export-with-toc nil))
 (require 'ox-extra)
@@ -121,7 +184,6 @@
       org-catch-invisible-edits 'show)
 (after! org
 (setq org-capture-templates
-    (append
      '(("w" "PhD work templates")
        ("wa"               ; key
         "Article"         ; name
@@ -132,6 +194,11 @@
         :empty-lines 1    ; properties
         :created t        ; properties
         )
+       ("wf" "Link file in index" entry
+            (file+function "~/Documents/Research/index.org" org-ask-location)
+           "** %A \n:PROPERTIES:\n:Created: %U \n:FromDate: %^u \n:Linked: %f\n:END: \n %^g %?"
+           :empty-lines 1
+           )
        ("wt" "TODO template" entry
         (file+headline "PhD.org.gpg" "Capture")
         ( file "tpl_todo.txt" ) :empty-lines-before 1)
@@ -179,7 +246,7 @@ SCHEDULED: %^T
        ("df" "French Vocabulary" entry
         (file+headline "drill/french.org" "Vocabulary")
         "* %^{The word} :drill:\n %t\n %^{Extended word (may be empty)} \n** Answer \n%^{The definition}"))
-     org-capture-templates)))
+     ))
 (after! org
   (setq org-agenda-custom-commands
         '(("c" "Simple agenda view"
@@ -219,6 +286,7 @@ SCHEDULED: %^T
 (advice-add #'jupyter-repl-font-lock-fontify-region :override #'jupyter-repl-font-lock-override)
 (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
 (setq org-babel-default-header-args '((:eval . "never-export") (:results . "replace")))
+(org-babel-lob-ingest "~/Documents/org/scripts.org")
 (add-to-list 'org-latex-classes
              '("koma-article" "\\documentclass{scrartcl}"
                ("\\section{%s}" . "\\section*{%s}")
@@ -332,16 +400,6 @@ SCHEDULED: %^T
     :hook
     ((LaTeX-mode . turn-on-cdlatex)
      (org-mode . turn-on-org-cdlatex)))
-
-(use-package! company-math
-    :after (:any org-mode TeX-mode)
-    :config
-    (set-company-backend! 'org-mode 'company-math-symbols-latex)
-    (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
-    (set-company-backend! 'org-mode 'company-latex-commands)
-    (set-company-backend! 'TeX-mode 'company-latex-commands)
-    (setq company-tooltip-align-annotations t)
-    (setq company-math-allow-latex-symbols-in-faces t))
 ;; (add-to-list 'load-path "~/programs/beancount/editors/emacs")
   ;; (require 'beancount)
   (after! beancount
@@ -353,3 +411,33 @@ SCHEDULED: %^T
   :config
 (setq lsp-pyls-server-command '("mspyls"))
   )
+;;(setq vc-handled-backends nil)
+;;(unpin! t)
+(setq auto-save-default t
+      auto-save-timeout 10
+      auto-save-interval 150)
+(setq auto-save-file-name-transforms
+  `((".*" "~/.emacs-saves/" t)))
+(setq backup-directory-alist `(("." . "~/.emacs-saves")))
+(setq backup-by-copying t)
+(setq delete-old-versions t
+  kept-new-versions 2
+  kept-old-versions 0
+  version-control t)
+(setq vc-make-backup-files t)
+
+(defun force-backup-of-buffer ()
+  ;; Make a special "per session" backup at the first save of each
+  ;; emacs session.
+  (when (not buffer-backed-up)
+    ;; Override the default parameters for per-session backups.
+    (let ((backup-directory-alist '(("" . "~/.emacs-saves/per-session")))
+          (kept-new-versions 3))
+      (backup-buffer)))
+  ;; Make a "per save" backup on each save.  The first save results in
+  ;; both a per-session and a per-save backup, to keep the numbering
+  ;; of per-save backups consistent.
+  (let ((buffer-backed-up nil))
+    (backup-buffer)))
+
+(add-hook 'before-save-hook  'force-backup-of-buffer)

@@ -26,6 +26,7 @@
  ;; They all accept either a font-spec, font string ("Input Mono-12"), or xlfd
  ;; font string. You generally only need these two:
  (setq doom-font (font-spec :family "monospace" :size 14))
+ (setq doom-big-font (font-spec :family "monospace" :size 20))
  #+END_SRC
 
  Theme
@@ -33,7 +34,7 @@
  ;; There are two ways to load a theme. Both assume the theme is installed and
  ;; available. You can either set `doom-theme' or manually load a theme with the
  ;; `load-theme' function. This is the default:
- (setq doom-theme 'doom-one)
+ (setq doom-theme 'doom-acario-light)
  #+END_SRC
 
  Org-Dir
@@ -59,14 +60,6 @@
 )
 
 #+END_SRC
-autosave
-#+BEGIN_SRC emacs-lisp
-(setq auto-save-default t
-      auto-save-timeout 10
-      auto-save-interval 180)
-(setq auto-save-file-name-transforms
-  `((".*" "~/.emacs-saves/" t)))
-#+END_SRC
 Kill Ring
 #+BEGIN_SRC emacs-lisp
 (use-package! popup-kill-ring)
@@ -79,6 +72,11 @@ Kill Ring
     :config
     (evil-collection-init)
   )
+
+(use-package! evil-surround
+  :ensure t
+  :config
+  (global-evil-surround-mode 1))
 #+END_SRC
 * Keybindings
 #+BEGIN_SRC emacs-lisp
@@ -114,8 +112,54 @@ Kill Ring
        )
 ))
 #+END_SRC
+#+BEGIN_SRC emacs-lisp
+(use-package! helm-files
+  :bind
+  (:map helm-find-files-map
+   ("C-h" . helm-find-files-up-one-level)
+   ("C-l" . helm-execute-persistent-action))
+)
+#+END_SRC
 * Functions
+** Select heading in capture
+#+BEGIN_SRC emacs-lisp
+(defun org-get-target-headline (&optional targets prompt)
+  "Prompt for a location in an org file and jump to it.
 
+This is for promping for refile targets when doing captures.
+Targets are selected from `org-refile-targets'. If TARGETS is
+given it temporarily overrides `org-refile-targets'. PROMPT will
+replace the default prompt message.
+
+If CAPTURE-LOC is is given, capture to that location instead of
+prompting."
+  (let ((org-refile-targets (or targets org-refile-targets))
+        (prompt (or prompt "Capture Location")))
+    (if org-capture-overriding-marker
+        (org-goto-marker-or-bmk org-capture-overriding-marker)
+      (org-refile t nil nil prompt)))
+  )
+
+(defun org-ask-location ()
+  (let* ((org-refile-targets '((nil :maxlevel . 9)))
+         (hd (condition-case nil
+                 (car (org-refile-get-location "Headline" nil t))
+               (error (car org-refile-history)))))
+    (goto-char (point-min))
+    (outline-next-heading)
+    (if (re-search-forward
+         (format org-complex-heading-regexp-format (regexp-quote hd))
+        nil t)
+      (goto-char (point-at-bol))
+      (goto-char (point-max))
+      (or (bolp) (insert "\n"))
+      (insert "* " hd "\n")))
+    (end-of-line))
+;; (setq org-outline-path-complete-in-steps nil)         ; Refile in a single go
+(after! org
+  (setq org-refile-use-outline-path nil))                  ; Show full paths for refiling
+
+#+END_SRC
 ** Insert Date
 Perhaps remove this
 #+BEGIN_SRC emacs-lisp
@@ -129,23 +173,44 @@ Perhaps remove this
 
 * Completion
 #+BEGIN_SRC emacs-lisp
-(use-package! company-tabnine
-  )
-(add-to-list 'company-backends #'company-tabnine)
+;; (use-package! company-tabnine
+;;   )
+
+(use-package! company-math
+  :after TeX-mode
+  :config
+  (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
+  (set-company-backend! 'TeX-mode 'company-latex-commands)
+  (setq company-tooltip-align-annotations t)
+  (setq company-math-allow-latex-symbols-in-faces t))
+
+;;(add-to-list 'company-backends #'company-tabnine)
 (set-company-backend! 'org-mode
-    'company-tabnine ;all purpose machine learning autocompleter
-    'company-files          ; files & directory
-         'company-keywords       ; keywords
-         'company-capf
-         'company-ispell
-         'company-yasnippet)
-(setq +lsp-company-backend '(company-lsp :with company-tabnine :separate))
+  '(:separated
+    company-yasnippet
+    company-files          ; files & directory
+    company-keywords       ; keywords
+    company-capf
+    company-ispell
+    company-math-symbols-latex
+    company-latex-commands
+    ))
+    ;; company-tabnine ; . #1=(:with company-yasnippet)) ;all purpose machine learning autocompleter
+;; (setq +lsp-company-backend '(company-lsp :with company-tabnine :separate))
 ;; Trigger completion immediately.
 (setq company-idle-delay 0)
 ;; Number the candidates (use M-1, M-2 etc to select completions).
 (setq company-show-numbers t)
+(map! :map company-active-map
+      "<tab>" nil
+      "C-SPC" 'company-complete-common-or-cycle )
 #+END_SRC
 * Module Configuration
+** helm
+#+BEGIN_SRC emacs-lisp
+(setq helm-ff-auto-update-initial-value 1
+      )
+#+END_SRC
 ** LaTeX
 #+BEGIN_SRC emacs-lisp
 (after! latex
@@ -184,9 +249,10 @@ use helm-org-rifle
 
 Set ~+org-vars~
 #+BEGIN_SRC emacs-lisp
+(after! org
 (setq org-directory "/home/philip/Documents/org/"
       org-archive-location (concat org-directory "archive/%s::")
-      +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg"))
+      +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg")))
 #+END_SRC
 Log time when things get marked as done
 #+BEGIN_SRC emacs-lisp
@@ -198,6 +264,15 @@ Enable ~org-cdlatex-mode~
 (after! org
 (add-hook 'org-mode-hook 'turn-on-org-cdlatex))
 #+END_SRC
+On TAB: Expand heading, then subheading, then collapse all
+#+BEGIN_SRC emacs-lisp
+(after! evil-org
+  (remove-hook 'org-tab-first-hook #'+org-cycle-only-current-subtree-h))
+#+END_SRC
+
+*** Org FsTree
+
+
 *** Org Export
 Don't export table of contents
 #+BEGIN_SRC emacs-lisp
@@ -223,7 +298,6 @@ Other
 #+BEGIN_SRC emacs-lisp
   (after! org
   (setq org-capture-templates
-      (append
        '(("w" "PhD work templates")
          ("wa"               ; key
           "Article"         ; name
@@ -234,6 +308,11 @@ Other
           :empty-lines 1    ; properties
           :created t        ; properties
           )
+         ("wf" "Link file in index" entry
+              (file+function "~/Documents/Research/index.org" org-ask-location)
+             "** %A \n:PROPERTIES:\n:Created: %U \n:FromDate: %^u \n:Linked: %f\n:END: \n %^g %?"
+             :empty-lines 1
+             )
          ("wt" "TODO template" entry
           (file+headline "PhD.org.gpg" "Capture")
           ( file "tpl_todo.txt" ) :empty-lines-before 1)
@@ -281,7 +360,7 @@ Other
          ("df" "French Vocabulary" entry
           (file+headline "drill/french.org" "Vocabulary")
           "* %^{The word} :drill:\n %t\n %^{Extended word (may be empty)} \n** Answer \n%^{The definition}"))
-       org-capture-templates)))
+       ))
 #+END_SRC
 *** Org Agenda
 #+BEGIN_SRC emacs-lisp
@@ -317,12 +396,12 @@ Other
 #+END_SRC
 *** Org Babel
 
-    Async
+****    Async
 #+BEGIN_SRC emacs-lisp
   (require 'ob-async)
 #+END_SRC
 
-    Jupyter and Julia
+****    Jupyter and Julia
 #+BEGIN_SRC emacs-lisp
   (add-to-list 'load-path "~/programs/julia")
   (add-to-list 'exec-path "~/programs/julia")
@@ -337,7 +416,7 @@ Other
   ;(setq jupyter-pop-up-frame t)
   )
 #+END_SRC
-Hopefully fix crashes in repl:
+Hopefully fixes crashes in repl:
 #+BEGIN_SRC emacs-lisp
 (defun jupyter-repl-font-lock-override (_ignore beg end &optional verbose)
   `(jit-lock-bounds ,beg . ,end))
@@ -345,13 +424,17 @@ Hopefully fix crashes in repl:
 (advice-add #'jupyter-repl-font-lock-fontify-region :override #'jupyter-repl-font-lock-override)
 #+END_SRC
 
-    Run codeblocks without confirmation:
+****    Run codeblocks without confirmation:
 #+BEGIN_SRC emacs-lisp
   (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
 #+END_SRC
-    Default Header
+****    Default Header
 #+BEGIN_SRC emacs-lisp
   (setq org-babel-default-header-args '((:eval . "never-export") (:results . "replace")))
+#+END_SRC
+**** ingest scripts
+#+BEGIN_SRC emacs-lisp
+(org-babel-lob-ingest "~/Documents/org/scripts.org")
 #+END_SRC
 *** Ox Latex
 ****  Export classes
@@ -498,15 +581,6 @@ Hopefully fix crashes in repl:
     ((LaTeX-mode . turn-on-cdlatex)
      (org-mode . turn-on-org-cdlatex)))
 
-(use-package! company-math
-    :after (:any org-mode TeX-mode)
-    :config
-    (set-company-backend! 'org-mode 'company-math-symbols-latex)
-    (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
-    (set-company-backend! 'org-mode 'company-latex-commands)
-    (set-company-backend! 'TeX-mode 'company-latex-commands)
-    (setq company-tooltip-align-annotations t)
-    (setq company-math-allow-latex-symbols-in-faces t))
 
 #+END_SRC
 ** Beancount
@@ -520,11 +594,51 @@ Recognise beancount files
     (add-hook 'beancount-mode-hook 'outline-minor-mode))
 #+END_SRC
 ** python
-#+begin_src emacs-lisp :tangle yes
+#+BEGIN_SRC emacs-lisp :tangle yes
 (use-package! lsp-python-ms
   :ensure t
   :config
 (setq lsp-pyls-server-command '("mspyls"))
   )
 
-#+end_src
+#+END_SRC
+** Version Control
+#+BEGIN_SRC emacs-lisp
+;;(setq vc-handled-backends nil)
+;;(unpin! t)
+#+END_SRC
+** Backup
+autosave
+#+BEGIN_SRC emacs-lisp
+(setq auto-save-default t
+      auto-save-timeout 10
+      auto-save-interval 150)
+(setq auto-save-file-name-transforms
+  `((".*" "~/.emacs-saves/" t)))
+#+END_SRC
+backup
+#+BEGIN_SRC emacs-lisp
+(setq backup-directory-alist `(("." . "~/.emacs-saves")))
+(setq backup-by-copying t)
+(setq delete-old-versions t
+  kept-new-versions 2
+  kept-old-versions 0
+  version-control t)
+(setq vc-make-backup-files t)
+
+(defun force-backup-of-buffer ()
+  ;; Make a special "per session" backup at the first save of each
+  ;; emacs session.
+  (when (not buffer-backed-up)
+    ;; Override the default parameters for per-session backups.
+    (let ((backup-directory-alist '(("" . "~/.emacs-saves/per-session")))
+          (kept-new-versions 3))
+      (backup-buffer)))
+  ;; Make a "per save" backup on each save.  The first save results in
+  ;; both a per-session and a per-save backup, to keep the numbering
+  ;; of per-save backups consistent.
+  (let ((buffer-backed-up nil))
+    (backup-buffer)))
+
+(add-hook 'before-save-hook  'force-backup-of-buffer)
+#+END_SRC

@@ -536,7 +536,7 @@ configuration.
 Put your configuration code here, except for variables that should be set
 before packages are loaded."
   ;; add personal load path
-  (add-to-list 'load-path "~/.emacs.d/private/lisp/org-graph-view")
+  (add-to-list 'load-path "~/emacs-configurations/spacemacs/private/lisp/org-graph-view")
   ;; PYTHON
   (pyenv-mode)
   (add-to-list 'load-path "~/.pyenv/shims/jupyter")
@@ -833,11 +833,6 @@ before packages are loaded."
   (add-hook 'pdf-view-mode-hook 'org-noter-init-pdf-view)
 
   ;; latex compile
-  (setq org-latex-pdf-process
-        '("pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-          "bibtex %b"
-          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"))
   (setq org-latex-logfiles-extensions (quote ("lof" "lot" "tex" "aux" "idx" "log" "out" "toc" "nav" "snm" "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "pygtex" "pygstyle")))
 
   ;; LATEX

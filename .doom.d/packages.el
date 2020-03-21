@@ -76,8 +76,15 @@
 (package! ranger)
 
 (package! evil-goggles)
+(package! evil-surround)
 (package! evil-collection)
 (package! popup-kill-ring)
 
 (package! helm-org-rifle)
-(package! company-tabnine)
+;; (package! company-tabnine)
+(package! company-math)
+;; (package! polymode :recipe
+;;    (:host github :repo "polymode/polymode"))
+
+;; (package! org-fstree :recipe (:local-repo "./modules/org"
+                                         ;; :files ("org-fstree.el")))

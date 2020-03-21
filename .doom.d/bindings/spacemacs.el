@@ -3,8 +3,8 @@
 
 (map!
  ;; Comma for shortcut to local-leader
- :n "," (λ! (push (cons t ?m) unread-command-events)
-            (push (cons t 32) unread-command-events))
+ ;; :n "," (λ! (push (cons t ?m) unread-command-events)
+ ;;            (push (cons t 32) unread-command-events))
 
  ;; Use C-a as the window operations prefix for when I accidentally think I'm in tmux
  :n "C-a" (λ! (push (cons t ?w) unread-command-events)
@@ -28,8 +28,8 @@
    (:prefix "f"
      :desc "Save file (Spacemacs)" :n "s" #'save-buffer
      :desc "Find file (Spacemacs)" :n "f" #'find-file)
-   (:prefix "b"
-     :desc "Switch buffer (Spacemacs)" :n "b" #'switch-to-buffer)
+   ;; (:prefix "b"
+   ;;   :desc "Switch buffer (Spacemacs)" :n "b" #'switch-to-buffer)
    (:prefix "w"
      :desc "Vertical split (Spacemacs)" :n "|" #'evil-window-vsplit
      :desc "Horizontal split (Spacemacs)" :n "_" #'evil-window-split
@@ -42,11 +42,11 @@
    (:prefix "p"
      :desc "Find project file (Spacemacs)" :n "f" #'projectile-find-file))
 
-   (:after helm-files
-     :map (helm-find-files-map helm-read-file-map)
-     "S-<return>" #'helm-ff-run-switch-other-window
-     "C-l" #'helm-execute-persistent-action
-     "C-w" #'helm-find-files-up-one-level)
+   ;; (:after helm-files
+   ;;   :map (helm-find-files-map helm-read-file-map)
+   ;;   "S-<return>" #'helm-ff-run-switch-other-window
+   ;;   "C-l" #'helm-execute-persistent-action
+   ;;   "C-w" #'helm-find-files-up-one-level)
  )
 
 
