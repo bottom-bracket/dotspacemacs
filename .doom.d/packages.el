@@ -64,6 +64,8 @@
 (package! ob-async)
 (package! org-gcal)
 (package! cdlatex)
+(package! org-sidebar)
+(package! org-mime)
 ;; * Org Ref
 (package! org-ref)
 (package! org-noter)
@@ -81,7 +83,7 @@
 (package! popup-kill-ring)
 
 (package! helm-org-rifle)
-;; (package! company-tabnine)
+(package! company-tabnine)
 (package! company-math)
 ;; (package! polymode :recipe
 ;;    (:host github :repo "polymode/polymode"))

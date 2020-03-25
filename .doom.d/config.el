@@ -44,6 +44,10 @@
 (map! :map org-mode-map
      :localleader
      :desc "Reference" "l r" #'org-ref-helm-insert-ref-link
+     :desc "Toggle Link display" "L" #'org-toggle-link-display
+     :desc "Toggle LaTeX fragment" "X" #'org-latex-preview
+     :desc "Copy Email html to clipboard" "M" #'export-org-email
+     :desc "Screenshot" "S" #'org-screenshot-take
 ;     (:prefix "o"
 ;       :desc "Tags" "t" 'org-set-tags
 ;       (:prefix ("p" . "Properties")
@@ -52,22 +56,11 @@
 ;         :desc "Actions" "a" 'org-property-action
 ;         )
 ;       )
-     (:prefix ("i" . "Insert")
-       :desc "Link/Image" "l" #'org-insert-link
-       :desc "Reference" "r" #'org-ref-helm-insert-ref-link
-       :desc "Item" "o" #'org-insert-item
-       :desc "Footnote" "f" #'org-footnote-action
-       :desc "Table" "t" #'org-table-create-or-convert-from-region
-       :desc "Screenshot" "s" #'org-screenshot-take
-       (:prefix ("h" . "Headings")
-         :desc "Normal" "h" #'org-insert-heading
-         :desc "Todo" "t" #'org-insert-todo-heading
-         (:prefix ("s" . "Subheadings")
-           :desc "Normal" "s" #'org-insert-subheading
-           :desc "Todo" "t" #'org-insert-todo-subheading
-           )
-       )
-))
+     (:prefix ("H" . "Headings")
+         :desc "Normal Heading" "h" #'org-insert-heading
+         :desc "Todo Heading" "H" #'org-insert-todo-heading
+         :desc "Normal Subheading" "s" #'org-insert-subheading
+         :desc "Todo Subheading" "S" #'org-insert-todo-subheading))
 (use-package! helm-files
   :bind
   (:map helm-find-files-map
@@ -115,9 +108,39 @@ prompting."
               (format-time-string "%d-%m-%Y")
             (format-time-string "%Y-%m-%d"))))
 (global-set-key (kbd "C-c d") 'insert-todays-date)
+;; Show the current function name in the header line
+(which-function-mode)
+(setq-default header-line-format
+              '((which-function-mode ("" which-func-format " "))))
+(setq mode-line-misc-info
+            ;; We remove Which Function Mode from the mode line, because it's mostly
+            ;; invisible here anyway.
+            (assq-delete-all 'which-function-mode mode-line-misc-info))
+(defun export-org-email ()
+  "Export the current org email and copy it to the clipboard"
+  (interactive)
+  (let ((org-export-show-temporary-export-buffer nil)
+        (org-html-head (org-email-html-head)))
+    (org-html-export-as-html)
+    (with-current-buffer "*Org HTML Export*"
+      (kill-new (buffer-string)))
+    (message "HTML copied to clipboard")))
+
+(defun org-email-html-head ()
+  "Create the header with CSS for use with email"
+  (concat
+   "<style type=\"text/css\">\n"
+   "<!--/*--><![CDATA[/*><!--*/\n"
+   (with-temp-buffer
+     (insert-file-contents
+      "~/Documents/org/setupfiles/org-html-themes/styles/email/css/email.css")
+     (buffer-string))
+   "/*]]>*/-->\n"
+   "</style>\n"))
 ;; (use-package! company-tabnine
 ;;   )
 
+(after! company
 (use-package! company-math
   :after TeX-mode
   :config
@@ -126,28 +149,32 @@ prompting."
   (setq company-tooltip-align-annotations t)
   (setq company-math-allow-latex-symbols-in-faces t))
 
-;;(add-to-list 'company-backends #'company-tabnine)
+(add-to-list 'company-backends #'company-tabnine)
 (set-company-backend! 'org-mode
   '(:separated
     company-yasnippet
     company-files          ; files & directory
+    company-tabnine ; . #1=(:with company-yasnippet)) ;all purpose machine learning autocompleter
     company-keywords       ; keywords
     company-capf
     company-ispell
     company-math-symbols-latex
     company-latex-commands
     ))
-    ;; company-tabnine ; . #1=(:with company-yasnippet)) ;all purpose machine learning autocompleter
-;; (setq +lsp-company-backend '(company-lsp :with company-tabnine :separate))
+(setq +lsp-company-backend '(company-capf :with company-files company-tabnine :separate))
 ;; Trigger completion immediately.
 (setq company-idle-delay 0)
 ;; Number the candidates (use M-1, M-2 etc to select completions).
 (setq company-show-numbers t)
 (map! :map company-active-map
       "<tab>" nil
-      "C-SPC" 'company-complete-common-or-cycle )
-(setq helm-ff-auto-update-initial-value 1
-      )
+      "TAB" nil
+      "C-SPC" 'company-complete-common-or-cycle ))
+(after! helm
+(setq helm-ff-auto-update-initial-value 1)
+(setq helm-mode-fuzzy-match t)
+(setq helm-completion-in-region-fuzzy-match t)
+)
 (after! latex
 (add-to-list
   'TeX-command-list
@@ -160,6 +187,8 @@ prompting."
 
 (setq LaTeX-command-style '(("" "%(PDF)%(latex) -shell-escape %S%(PDFout)")))
 )
+(after! latex
+  (add-hook 'LaTex-mode-hook 'turn-on-cdlatex))
 (add-hook 'eshell-mode-hook #'hide-mode-line-mode)
 (add-hook 'term-mode-hook #'hide-mode-line-mode)
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
@@ -174,6 +203,8 @@ prompting."
 (add-hook 'org-mode-hook 'turn-on-org-cdlatex))
 (after! evil-org
   (remove-hook 'org-tab-first-hook #'+org-cycle-only-current-subtree-h))
+(setq org-goto-interface 'outline-path-completion
+      org-goto-max-level 10)
 (after! org
   (setq org-export-with-toc nil))
 (require 'ox-extra)
@@ -395,22 +426,23 @@ SCHEDULED: %^T
    org-noter-notes-search-path "~/Documents/PhD/Literature.bib/notes"
    )
   )
-(use-package! cdlatex
-    :after (:any org-mode LaTeX-mode)
-    :hook
-    ((LaTeX-mode . turn-on-cdlatex)
-     (org-mode . turn-on-org-cdlatex)))
+(use-package! org-sidebar
+  :after org-mode
+  :config
+  (setq org-sidebar-tree-jump-fn #'org-sicebar-tree-jump-source))
+(use-package! org-mime)
 ;; (add-to-list 'load-path "~/programs/beancount/editors/emacs")
   ;; (require 'beancount)
   (after! beancount
   (add-to-list 'auto-mode-alist '("\\.beancount\\'" . beancount-mode))  ;; Automatically open .beancount files in beancount-mode.
   (add-to-list 'auto-mode-alist '("\\.beancount$" . beancount-mode))
   (add-hook 'beancount-mode-hook 'outline-minor-mode))
+(after! lsp-mode
 (use-package! lsp-python-ms
   :ensure t
   :config
-(setq lsp-pyls-server-command '("mspyls"))
-  )
+;(setq lsp-pyls-server-command '("mspyls"))
+  ))
 ;;(setq vc-handled-backends nil)
 ;;(unpin! t)
 (setq auto-save-default t
