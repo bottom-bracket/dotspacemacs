@@ -55,22 +55,28 @@
 
 (package! beancount :recipe (:local-repo "~/programs/beancount/editors/emacs"
                                          :files ("beancount.el")))
+;; * Mail
+(package! mu4e-multi :recipe (:local-repo "./modules/"
+                                         :files ("mu4e-multi.el")))
 ;; * Writing
 (package! academic-phrases)
-
 ;; * Org
 (package! org-chef)
 (package! ox-reveal)
+(package! ox-pandoc)
 (package! ob-async)
 (package! org-gcal)
 (package! cdlatex)
 (package! org-sidebar)
 (package! org-mime)
-;; * Org Ref
+(package! org-preview-html)
+;; Org Ref
 (package! org-ref)
 (package! org-noter)
 ;; Python
 (package! lsp-python-ms)
+(package! lsp-treemacs)
+(package! helm-lsp)
 ;;
 ;; * Other
 (package! simple-httpd)
@@ -83,8 +89,11 @@
 (package! popup-kill-ring)
 
 (package! helm-org-rifle)
-(package! company-tabnine)
+(package! company-tabnine :disable t)
+(package! company-lsp :disable nil)
 (package! company-math)
+(package! snails
+  :recipe (:host github :repo "manateelazycat/snails" :files ("*.el" "*.sh") :no-byte-compile t))
 ;; (package! polymode :recipe
 ;;    (:host github :repo "polymode/polymode"))
 

@@ -22,8 +22,9 @@
 ;; change `org-directory'. It must be set before org loads!
 (setq org-directory "~/Documents/org/")
 ;; This determines the style of line numbers in effect. If set to `nil', line
-;; numbers are disabled. For relative line numbers, set this to `relative'.
-;;(setq display-line-numbers-type relative)
+ ;; numbers are disabled. For relative line numbers, set this to `relative'.
+ ;;(setq display-line-numbers-type relative)
+(setq display-line-number-width 4)
 (setq show-trailing-whitespace t
       delete-by-moving-to-trash t
       trash-directory "~/.local/share/Trash/files"
@@ -60,13 +61,29 @@
          :desc "Normal Heading" "h" #'org-insert-heading
          :desc "Todo Heading" "H" #'org-insert-todo-heading
          :desc "Normal Subheading" "s" #'org-insert-subheading
-         :desc "Todo Subheading" "S" #'org-insert-todo-subheading))
+         :desc "Todo Subheading" "S" #'org-insert-todo-subheading)
+     )
 (use-package! helm-files
   :bind
   (:map helm-find-files-map
    ("C-h" . helm-find-files-up-one-level)
    ("C-l" . helm-execute-persistent-action))
 )
+(map! :leader
+      (:prefix ("y" . "Useful Hydra Menus")
+        :desc "Spelling" "s" #'hydra-spelling/body))
+;; (map!
+;;  (:prefix "z"
+;;    :desc "evil/vimish-fold-toggle" "g" #'vimish-fold-toggle))
+(map! :leader
+     (:prefix "o"
+       :desc "Ipython REPL" "i" #'+python/open-ipython-repl))
+;; in my setup it is prior and next that are define the Page Up/Down buttons
+(map!
+ "<prior>" nil
+ "<next>" nil
+ "<PageDown>" nil
+ "<PageUp>" nil)
 (defun org-get-target-headline (&optional targets prompt)
   "Prompt for a location in an org file and jump to it.
 
@@ -116,6 +133,62 @@ prompting."
             ;; We remove Which Function Mode from the mode line, because it's mostly
             ;; invisible here anyway.
             (assq-delete-all 'which-function-mode mode-line-misc-info))
+(defcustom org-html-image-base64-max-size #x40000
+  "Export embedded base64 encoded images up to this size."
+  :type 'number
+  :group 'org-export-html)
+
+(defun file-to-base64-string (file &optional image prefix postfix)
+  "Transform binary file FILE into a base64-string prepending PREFIX and appending POSTFIX.
+Puts \"data:image/%s;base64,\" with %s replaced by the image type before the actual image data if IMAGE is non-nil."
+  (concat prefix
+      (with-temp-buffer
+        (set-buffer-multibyte nil)
+        (insert-file-contents file nil nil nil t)
+        (base64-encode-region (point-min) (point-max) 'no-line-break)
+        (when image
+          (goto-char (point-min))
+          (insert (format "data:image/%s;base64," (image-type-from-file-name file))))
+        (buffer-string))
+      postfix))
+
+(defun orgTZA-html-base64-encode-p (file)
+  "Check whether FILE should be exported base64-encoded.
+The return value is actually FILE with \"file://\" removed if it is a prefix of FILE."
+  (when (and (stringp file)
+             (string-match "\\`file://" file))
+    (setq file (substring file (match-end 0))))
+  (and
+   (file-readable-p file)
+   (let ((size (nth 7 (file-attributes file))))
+     (<= size org-html-image-base64-max-size))
+   file))
+
+(defun orgTZA-html--format-image (source attributes info)
+  "Return \"img\" tag with given SOURCE and ATTRIBUTES.
+SOURCE is a string specifying the location of the image.
+ATTRIBUTES is a plist, as returned by
+`org-export-read-attribute'.  INFO is a plist used as
+a communication channel."
+  (if (string= "svg" (file-name-extension source))
+      (org-html--svg-image source attributes info)
+    (let* ((file (orgTZA-html-base64-encode-p source))
+           (data (if file (file-to-base64-string file t)
+                   source)))
+      (org-html-close-tag
+       "img"
+       (org-html--make-attribute-string
+        (org-combine-plists
+         (list :src data
+               :alt (if (string-match-p "^ltxpng/" source)
+                        (org-html-encode-plain-text
+                         (org-find-text-property-in-string 'org-latex-src source))
+                      (file-name-nondirectory source)))
+         attributes))
+       info))))
+
+(advice-add 'org-html--format-image :override #'orgTZA-html--format-image)
+
 (defun export-org-email ()
   "Export the current org email and copy it to the clipboard"
   (interactive)
@@ -137,39 +210,74 @@ prompting."
      (buffer-string))
    "/*]]>*/-->\n"
    "</style>\n"))
+(after! flyspell
+  (setq flyspell-abbrev-p t))
+(after! abbrev
+  (setq abbrev-file-name "~/.dotfiles/abbrev_defs"))
+(defhydra hydra-spelling (:color blue)
+  "
+  ^
+  ^Spelling^          ^Errors^            ^Checker^
+  ^────────^──────────^──────^────────────^───────^───────
+  _q_ quit            _p_ previous        _c_ correction
+  ^^                  _n_ next            _d_ dictionary
+  ^^                  _f_ check           _m_ mode
+  ^^                  ^^                  ^^
+  "
+  ("q" nil)
+  ("p" flyspell-correct-previous :color pink)
+  ("n" flyspell-correct-next :color pink)
+  ("c" ispell)
+  ("d" ispell-change-dictionary)
+  ("f" flyspell-buffer)
+  ("m" flyspell-mode))
 ;; (use-package! company-tabnine
 ;;   )
 
-(after! company
-(use-package! company-math
-  :after TeX-mode
-  :config
-  (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
-  (set-company-backend! 'TeX-mode 'company-latex-commands)
-  (setq company-tooltip-align-annotations t)
-  (setq company-math-allow-latex-symbols-in-faces t))
+(after! (:any company)
+(setq-default company-backends
+                `((company-capf         ; `completion-at-point-functions'
+                   ;; :separate company-tabnine
+                   :separate company-yasnippet
+                   :separate company-keywords
+                   :separate company-abbrev
+                   :separate company-files)
+                  company-ispell
+                  company-dabbrev-code
+                  company-files))
+  (use-package! company-math
+    :after TeX-mode
+    :config
+    (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
+    (set-company-backend! 'TeX-mode 'company-latex-commands)
+    (setq company-tooltip-align-annotations t)
+    (setq company-math-allow-latex-symbols-in-faces t))
 
-(add-to-list 'company-backends #'company-tabnine)
-(set-company-backend! 'org-mode
-  '(:separated
-    company-yasnippet
-    company-files          ; files & directory
-    company-tabnine ; . #1=(:with company-yasnippet)) ;all purpose machine learning autocompleter
-    company-keywords       ; keywords
-    company-capf
-    company-ispell
-    company-math-symbols-latex
-    company-latex-commands
-    ))
-(setq +lsp-company-backend '(company-capf :with company-files company-tabnine :separate))
-;; Trigger completion immediately.
-(setq company-idle-delay 0)
-;; Number the candidates (use M-1, M-2 etc to select completions).
-(setq company-show-numbers t)
-(map! :map company-active-map
-      "<tab>" nil
-      "TAB" nil
-      "C-SPC" 'company-complete-common-or-cycle ))
+  ;; (add-to-list 'company-backends #'company-tabnine)
+  (add-to-list 'company-backends #'company-files)
+  (set-company-backend! 'org-mode
+      '(:separate company-capf
+        company-keywords       ; keywords
+        :separate company-yasnippet
+        :separate company-dabbrev
+        ;; :separate company-tabnine
+        :separate company-ispell
+        :separate company-files
+     ; company-math-symbols-latex ; may  not need those as there is cdlatex mode
+     ; company-latex-commands
+     ))
+  (setq +lsp-company-backend '(company-capf))
+  ;  :with company-files
+  ;  company-tabnine
+  ;  :separate
+  ;; Trigger completion immediately.
+  (setq company-idle-delay 0)
+  ;; Number the candidates (use M-1, M-2 etc to select completions).
+  (setq company-show-numbers t)
+  (map! :map company-active-map
+        "<tab>" nil
+        "TAB" nil
+        "C-SPC" 'company-complete-common-or-cycle))
 (after! helm
 (setq helm-ff-auto-update-initial-value 1)
 (setq helm-mode-fuzzy-match t)
@@ -189,6 +297,21 @@ prompting."
 )
 (after! latex
   (add-hook 'LaTex-mode-hook 'turn-on-cdlatex))
+(after! cdlatex
+ (setq cdlatex-command-alist '(("ang"         "Insert \\ang{}"
+                               "\\ang{?}" cdlatex-position-cursor nil t t)
+                              ("si"          "Insert \\SI{}{}"
+                               "\\SI{?}{}" cdlatex-position-cursor nil t t)
+                              ("sl"          "Insert \\SIlist{}{}"
+                               "\\SIlist{?}{}" cdlatex-position-cursor nil t t)
+                              ("sr"          "Insert \\SIrange{}{}{}"
+                               "\\SIrange{?}{}{}" cdlatex-position-cursor nil t t)
+                              ("num"         "Insert \\num{}"
+                               "\\num{?}" cdlatex-position-cursor nil t t)
+                              ("nl"          "Insert \\numlist{}"
+                               "\\numlist{?}" cdlatex-position-cursor nil t t)
+                              ("nr"          "Insert \\numrange{}{}"
+                               "\\numrange{?}{}" cdlatex-position-cursor nil t t))) )
 (add-hook 'eshell-mode-hook #'hide-mode-line-mode)
 (add-hook 'term-mode-hook #'hide-mode-line-mode)
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
@@ -205,6 +328,7 @@ prompting."
   (remove-hook 'org-tab-first-hook #'+org-cycle-only-current-subtree-h))
 (setq org-goto-interface 'outline-path-completion
       org-goto-max-level 10)
+(use-package! org-preview-html)
 (after! org
   (setq org-export-with-toc nil))
 (require 'ox-extra)
@@ -339,11 +463,12 @@ SCHEDULED: %^T
                ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
 (setq org-latex-logfiles-extensions (quote ("lof" "lot" "tex" "aux" "idx" "log" "out" "toc" "nav" "snm" "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "pygtex" "pygstyle")))
 (setq org-latex-create-formula-image-program 'imagemagick)
-(add-to-list 'org-latex-packages-alist '("" "minted" "xcolor"))
+(add-to-list 'org-latex-packages-alist '("" "minted" "xcolor" "siunitx" "nicefrac"))
 (setq org-latex-listings 'minted)
 (setq org-latex-minted-options
   '(("bgcolor" "lightgray") ("linenos" "true") ("style" "tango")))
 (setq org-latex-pdf-process (list "latexmk -shell-escape -bibtex -f -pdf %f"))
+(use-package! ox-pandoc)
 (use-package! org-ref
     :after org
     :init
@@ -437,12 +562,22 @@ SCHEDULED: %^T
   (add-to-list 'auto-mode-alist '("\\.beancount\\'" . beancount-mode))  ;; Automatically open .beancount files in beancount-mode.
   (add-to-list 'auto-mode-alist '("\\.beancount$" . beancount-mode))
   (add-hook 'beancount-mode-hook 'outline-minor-mode))
-(after! lsp-mode
-(use-package! lsp-python-ms
-  :ensure t
-  :config
-;(setq lsp-pyls-server-command '("mspyls"))
-  ))
+;; (after! lsp-mode
+;;   (use-package! lsp-python-ms
+;;     :ensure t
+;;     :config
+;;     (setq lsp-prefer-capf t)
+;;     )
+;;   )
+;; uncomment to have default interpreter as ipython. in Doom : use +python/open-ipython-repl instead
+;; (when (executable-find "ipython")
+;;   (setq python-shell-interpreter "ipython"))
+;; (use-package! lsp-python-ms
+;;   :ensure t
+;;   :hook (python-mode . (lambda ()
+;;                           (require 'lsp-python-ms)
+;;                           (lsp))))
+(setq lsp-pyls-server-command '("mspyls"))
 ;;(setq vc-handled-backends nil)
 ;;(unpin! t)
 (setq auto-save-default t
@@ -473,3 +608,10 @@ SCHEDULED: %^T
     (backup-buffer)))
 
 (add-hook 'before-save-hook  'force-backup-of-buffer)
+(add-load-path! "/usr/share/emacs/site-lisp/mu4e")
+(use-package! mu4e
+  :config
+(remove-hook 'mu4e-main-mode-hook 'evil-collection-mu4e-update-main-view)
+  (load! "mu4e-config.el"))
+(use-package!
+    snails)

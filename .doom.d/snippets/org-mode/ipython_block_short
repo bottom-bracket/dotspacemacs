@@ -3,6 +3,6 @@
 # key: ipy
 # --
 #+NAME: ${1:`(make-temp-name "")`}
-#+begin_src jupyter-python :session ${2:`(file-name-base (buffer-file-name))`} :exports ${3:$$(yas-choose-value '("both" "results" "code" "none"))} :tangle ./src/$2.py
+#+BEGIN_SRC jupyter-python :session ${2:`(file-name-base (buffer-file-name))`} :exports ${3:$$(yas-choose-value '("both" "results" "code" "none"))} :tangle ./src/$2.py
   $0
-#+end_src
+#+END_SRC
