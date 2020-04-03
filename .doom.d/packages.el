@@ -74,9 +74,9 @@
 (package! org-ref)
 (package! org-noter)
 ;; Python
-(package! lsp-python-ms)
-(package! lsp-treemacs)
-(package! helm-lsp)
+;; (package! lsp-python-ms)
+;; (package! lsp-treemacs)
+;; (package! helm-lsp)
 ;;
 ;; * Other
 (package! simple-httpd)
@@ -84,7 +84,7 @@
 (package! ranger)
 
 (package! evil-goggles)
-(package! evil-surround)
+;; (package! evil-surround)
 (package! evil-collection)
 (package! popup-kill-ring)
 
@@ -92,9 +92,9 @@
 (package! company-tabnine :disable t)
 (package! company-lsp :disable nil)
 (package! company-math)
-(package! snails
-  :recipe (:host github :repo "manateelazycat/snails" :files ("*.el" "*.sh") :no-byte-compile t))
-;; (package! polymode :recipe
+;; (package! snails
+;;   :recipe (:host github :repo "manateelazycat/snails" :files ("*.el" "*.sh") :no-byte-compile t))
+;; ;; (package! polymode :recipe
 ;;    (:host github :repo "polymode/polymode"))
 
 ;; (package! org-fstree :recipe (:local-repo "./modules/org"

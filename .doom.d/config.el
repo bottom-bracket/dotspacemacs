@@ -57,6 +57,8 @@
 ;         :desc "Actions" "a" 'org-property-action
 ;         )
 ;       )
+     (:prefix ("j" . "Jupyter")
+       :desc "Open Scratch Buffer" "s" #'org-babel-jupyter-scratch-buffer)
      (:prefix ("H" . "Headings")
          :desc "Normal Heading" "h" #'org-insert-heading
          :desc "Todo Heading" "H" #'org-insert-todo-heading
@@ -78,6 +80,12 @@
 (map! :leader
      (:prefix "o"
        :desc "Ipython REPL" "i" #'+python/open-ipython-repl))
+(map! :map python-mode-map
+      :localleader
+      (:prefix ("j" . "Jupyter Commands")
+      :desc "Run new REPL" "r" #'jupyter-run-repl
+      :desc "Associate Buffer to Jupyter REPL" "a" #'jupyter-repl-associate-buffer
+      ))
 ;; in my setup it is prior and next that are define the Page Up/Down buttons
 (map!
  "<prior>" nil
@@ -266,7 +274,7 @@ a communication channel."
      ; company-math-symbols-latex ; may  not need those as there is cdlatex mode
      ; company-latex-commands
      ))
-  (setq +lsp-company-backend '(company-capf))
+  ;; (setq +lsp-company-backend '(company-capf))
   ;  :with company-files
   ;  company-tabnine
   ;  :separate
@@ -423,24 +431,29 @@ SCHEDULED: %^T
 (setq org-brain-include-file-entries nil
       org-brain-file-entries-use-title nil)
 (require 'ob-async)
+;; (add-to-list 'org-src-lang-modes '("mathematica" . wolfram))
+(after! org-mode
+  #'jupyter-org-interaction-mode)
 (add-to-list 'load-path "~/programs/julia")
-(add-to-list 'exec-path "~/programs/julia")
-(add-hook 'julia-mode-hook 'julia-repl-mode)
-(after! emacs-jupyter
-(setq inferior-julia-program-name "/home/philip/programs/julia/julia")
-(add-hook 'ob-async-pre-execute-src-block-hook
-          '(lambda ()
-             (setq inferior-julia-program-name "/home/philip/programs/julia/julia")))
-(setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
-(org-babel-jupyter-override-src-block "python")
-;(setq jupyter-pop-up-frame t)
-)
+  (add-to-list 'exec-path "~/programs/julia")
+  (add-hook 'julia-mode-hook 'julia-repl-mode)
+  (setq inferior-julia-program-name "/home/philip/programs/julia/julia")
+  (add-hook 'ob-async-pre-execute-src-block-hook
+            '(lambda ()
+               (setq inferior-julia-program-name "/home/philip/programs/julia/julia")))
+  (setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
+  (setq jupyter-pop-up-frame nil)
+  (setq jupyter-eval-use-overlays t)
+(setq org-babel-default-header-args:jupyter-python '((:async . "yes")
+                                                     (:kernel . "python3")))
 (defun jupyter-repl-font-lock-override (_ignore beg end &optional verbose)
   `(jit-lock-bounds ,beg . ,end))
 
 (advice-add #'jupyter-repl-font-lock-fontify-region :override #'jupyter-repl-font-lock-override)
 (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
-(setq org-babel-default-header-args '((:eval . "never-export") (:results . "replace")))
+(setq org-babel-default-header-args '((:eval . "never-export")
+                                      (:results . "replace")
+                                      ))
 (org-babel-lob-ingest "~/Documents/org/scripts.org")
 (add-to-list 'org-latex-classes
              '("koma-article" "\\documentclass{scrartcl}"
@@ -570,6 +583,7 @@ SCHEDULED: %^T
 ;;     )
 ;;   )
 ;; uncomment to have default interpreter as ipython. in Doom : use +python/open-ipython-repl instead
+;; Important: using ipython as default python interpreter breaks LSP
 ;; (when (executable-find "ipython")
 ;;   (setq python-shell-interpreter "ipython"))
 ;; (use-package! lsp-python-ms
@@ -613,5 +627,5 @@ SCHEDULED: %^T
   :config
 (remove-hook 'mu4e-main-mode-hook 'evil-collection-mu4e-update-main-view)
   (load! "mu4e-config.el"))
-(use-package!
-    snails)
+;(use-package!
+;    snails)
