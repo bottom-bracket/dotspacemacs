@@ -51,13 +51,12 @@
 ;(package! builtin-package :recipe (:branch "develop"))
 
 
-(package! flycheck-popup-tip :disable t)
+(package! flycheck-popup-tip ) ;:disable t)
 
 (package! beancount :recipe (:local-repo "~/programs/beancount/editors/emacs"
                                          :files ("beancount.el")))
 ;; * Mail
-(package! mu4e-multi :recipe (:local-repo "./modules/"
-                                         :files ("mu4e-multi.el")))
+(package! mu4e-maildirs-extension)
 ;; * Writing
 (package! academic-phrases)
 ;; * Org
@@ -92,6 +91,7 @@
 (package! company-tabnine :disable t)
 (package! company-lsp :disable nil)
 (package! company-math)
+;; (package! dired+)
 ;; (package! snails
 ;;   :recipe (:host github :repo "manateelazycat/snails" :files ("*.el" "*.sh") :no-byte-compile t))
 ;; ;; (package! polymode :recipe
@@ -99,3 +99,6 @@
 
 ;; (package! org-fstree :recipe (:local-repo "./modules/org"
                                          ;; :files ("org-fstree.el")))
+
+(package! ox-koma-letter :recipe (:local-repo "./modules/org"
+                                  :files ("ox-koma-letter.el")))

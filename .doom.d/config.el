@@ -6,17 +6,7 @@
 ;; are the three important ones:
 ;;
 ;; + `doom-font'
-;; + `doom-variable-pitch-font'
-;; + `doom-big-font' -- used for `doom-big-font-mode'; use this for
-;;   presentations or streaming.
-;;
-;; They all accept either a font-spec, font string ("Input Mono-12"), or xlfd
-;; font string. You generally only need these two:
-(setq doom-font (font-spec :family "monospace" :size 14))
-(setq doom-big-font (font-spec :family "monospace" :size 20))
-;; There are two ways to load a theme. Both assume the theme is installed and
-;; available. You can either set `doom-theme' or manually load a theme with the
-;; `load-theme' function. This is the default:
+;; + `dnction. This is the default:
 (setq doom-theme 'doom-acario-light)
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
@@ -28,8 +18,15 @@
 (setq show-trailing-whitespace t
       delete-by-moving-to-trash t
       trash-directory "~/.local/share/Trash/files"
+      window-combination-resize t
 )
+(delete-selection-mode 1)                         ; Replace selection when inserting text
+(display-time-mode 1)                             ; Enable time in the mode-line
+(display-battery-mode 1)                          ; On laptops it's nice to know how much power you have
+(global-subword-mode 1)                           ; Iterate through CamelCase words
 (use-package! popup-kill-ring)
+(setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
+(doom-themes-treemacs-config)
 (use-package! evil-collection
 ;    :after
 ;    (setq evil-want-keybinding nil)
@@ -49,6 +46,8 @@
      :desc "Toggle LaTeX fragment" "X" #'org-latex-preview
      :desc "Copy Email html to clipboard" "M" #'export-org-email
      :desc "Screenshot" "S" #'org-screenshot-take
+     :desc "Toggle Sidebar Tree" "m" #'org-sidebar-tree-toggle
+     :desc "Org-Ref" "R" #'org-ref
 ;     (:prefix "o"
 ;       :desc "Tags" "t" 'org-set-tags
 ;       (:prefix ("p" . "Properties")
@@ -58,13 +57,17 @@
 ;         )
 ;       )
      (:prefix ("j" . "Jupyter")
-       :desc "Open Scratch Buffer" "s" #'org-babel-jupyter-scratch-buffer)
+       :desc "Open Scratch Buffer" "s" #'org-babel-jupyter-scratch-buffer
+       :desc "Restart Kernel Execute Block" "r" #'jupyter-org-restart-kernel-execute-block)
      (:prefix ("H" . "Headings")
          :desc "Normal Heading" "h" #'org-insert-heading
          :desc "Todo Heading" "H" #'org-insert-todo-heading
          :desc "Normal Subheading" "s" #'org-insert-subheading
          :desc "Todo Subheading" "S" #'org-insert-todo-subheading)
      )
+(map! :map org-sidebar-tree-map
+      "S-<return>" #'org-sidebar-tree-jump
+      "S-RET" #'org-sidebar-tree-jump)
 (use-package! helm-files
   :bind
   (:map helm-find-files-map
@@ -92,6 +95,9 @@
  "<next>" nil
  "<PageDown>" nil
  "<PageUp>" nil)
+(map! :leader
+      :desc "Raise Popup Buffer" "w m r" #'+popup/raise
+      )
 (defun org-get-target-headline (&optional targets prompt)
   "Prompt for a location in an org file and jump to it.
 
@@ -256,8 +262,11 @@ a communication channel."
   (use-package! company-math
     :after TeX-mode
     :config
-    (set-company-backend! 'TeX-mode 'company-math-symbols-latex)
-    (set-company-backend! 'TeX-mode 'company-latex-commands)
+    (set-company-backend! 'TeX-mode
+      '(:separate company-auctex
+        :separate company-capf
+        company-math-symbols-latex
+        company-latex-commands))
     (setq company-tooltip-align-annotations t)
     (setq company-math-allow-latex-symbols-in-faces t))
 
@@ -280,6 +289,8 @@ a communication channel."
   ;  :separate
   ;; Trigger completion immediately.
   (setq company-idle-delay 0)
+  ;; reduce prefix length (for lsp)
+(setq company-minimum-prefix-length 2)
   ;; Number the candidates (use M-1, M-2 etc to select completions).
   (setq company-show-numbers t)
   (map! :map company-active-map
@@ -295,13 +306,13 @@ a communication channel."
 (add-to-list
   'TeX-command-list
   '("latexmk_shellesc"
-    "latexmk -shell-escape -bibtex -f -pdf %f"
-    TeX-run-command
+    "latexmk %(-PDF)%S%(mode) -shell-escape %(file-line-error) %(extraopts) %t"
+    TeX-run-latexmk
     nil                              ; ask for confirmation
     t                                ; active in all modes
     :help "Latexmk as for org"))
 
-(setq LaTeX-command-style '(("" "%(PDF)%(latex) -shell-escape %S%(PDFout)")))
+;; (setq LaTeX-command-style '(("" "%(PDF)%(latex) -shell-escape %S%(PDFout)")))
 )
 (after! latex
   (add-hook 'LaTex-mode-hook 'turn-on-cdlatex))
@@ -319,7 +330,10 @@ a communication channel."
                               ("nl"          "Insert \\numlist{}"
                                "\\numlist{?}" cdlatex-position-cursor nil t t)
                               ("nr"          "Insert \\numrange{}{}"
-                               "\\numrange{?}{}" cdlatex-position-cursor nil t t))) )
+                               "\\numrange{?}{}" cdlatex-position-cursor nil t t)))
+;; Latex viewers
+(setq +latex-viewers '(pdf-tools okular))
+ )
 (add-hook 'eshell-mode-hook #'hide-mode-line-mode)
 (add-hook 'term-mode-hook #'hide-mode-line-mode)
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
@@ -330,12 +344,15 @@ a communication channel."
       +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg")))
 (after! org
   (setq org-log-done 'time))
-(after! org
+(after! (:all org cdlatex)
 (add-hook 'org-mode-hook 'turn-on-org-cdlatex))
 (after! evil-org
   (remove-hook 'org-tab-first-hook #'+org-cycle-only-current-subtree-h))
 (setq org-goto-interface 'outline-path-completion
       org-goto-max-level 10)
+(setq org-image-actual-width '(400))
+(after! org
+  (set-popup-rule! "^\\*Org Src*" :side 'right :size 0.5))
 (use-package! org-preview-html)
 (after! org
   (setq org-export-with-toc nil))
@@ -430,20 +447,38 @@ SCHEDULED: %^T
 (setq org-brain-title-max-length 12)
 (setq org-brain-include-file-entries nil
       org-brain-file-entries-use-title nil)
+(add-to-list 'org-structure-template-alist '("j" . "src jupyter-python"))
+;; (add-hook! org-mode
+;;            #'(lambda ()
+;;                (push '("#+begin_src" . "λ") prettify-symbols-alist)
+;;                (push '("#+end_src" . "λ") prettify-symbols-alist)
+;;                (push '("#+begin_example" . "⁈") prettify-symbols-alist)
+;;                (push '("#+end_example" . "⁈") prettify-symbols-alist)
+;;                (push '("#+begin_quote" . "“") prettify-symbols-alist)
+;;                (push '("#+end_quote" . "”") prettify-symbols-alist)
+;;                (push '("#+begin_export" . "->") prettify-symbols-alist)
+;;                (push '("#+end_export" . "<-") prettify-symbols-alist)
+;;                (push '("jupyter-python" . "") prettify-symbols-alist)
+;;                (push '("#+RESULTS:" . "=") prettify-symbols-alist)
+;;                (push '(":results" . "=") prettify-symbols-alist)
+;;                (push '(":dir" . "") prettify-symbols-alist)
+;;                (push '(":session" . "@") prettify-symbols-alist)
+;;                (setq line-spacing 4)
+;;                (prettify-symbols-mode)))
 (require 'ob-async)
 ;; (add-to-list 'org-src-lang-modes '("mathematica" . wolfram))
-(after! org-mode
-  #'jupyter-org-interaction-mode)
+;; (add-hook! org-mode
+;;   (jupyter-org-interaction-mode))
 (add-to-list 'load-path "~/programs/julia")
-  (add-to-list 'exec-path "~/programs/julia")
-  (add-hook 'julia-mode-hook 'julia-repl-mode)
-  (setq inferior-julia-program-name "/home/philip/programs/julia/julia")
-  (add-hook 'ob-async-pre-execute-src-block-hook
-            '(lambda ()
-               (setq inferior-julia-program-name "/home/philip/programs/julia/julia")))
-  (setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
-  (setq jupyter-pop-up-frame nil)
-  (setq jupyter-eval-use-overlays t)
+(add-to-list 'exec-path "~/programs/julia")
+(add-hook 'julia-mode-hook 'julia-repl-mode)
+(setq inferior-julia-program-name "/home/philip/programs/julia/julia")
+(add-hook 'ob-async-pre-execute-src-block-hook
+          '(lambda ()
+             (setq inferior-julia-program-name "/home/philip/programs/julia/julia")))
+(setq ob-async-no-async-languages-alist '( "jupyter-python" "jupyter-julia" "julia" "python"))
+(setq jupyter-pop-up-frame nil)
+(setq jupyter-eval-use-overlays t)
 (setq org-babel-default-header-args:jupyter-python '((:async . "yes")
                                                      (:kernel . "python3")))
 (defun jupyter-repl-font-lock-override (_ignore beg end &optional verbose)
@@ -455,6 +490,7 @@ SCHEDULED: %^T
                                       (:results . "replace")
                                       ))
 (org-babel-lob-ingest "~/Documents/org/scripts.org")
+(after! ox (require 'ox-koma-letter))
 (add-to-list 'org-latex-classes
              '("koma-article" "\\documentclass{scrartcl}"
                ("\\section{%s}" . "\\section*{%s}")
@@ -462,18 +498,47 @@ SCHEDULED: %^T
                ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
                ("\\paragraph{%s}" . "\\paragraph*{%s}")
                ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
-(add-to-list 'org-latex-classes
-             '("mimosis"
-               "\\documentclass{mimosis}
-[NO-DEFAULT-PACKAGES]
-[PACKAGES]
-[EXTRA]"
-               ("\\chapter{%s}" . "\\addchap{%s}")
-               ("\\section{%s}" . "\\section*{%s}")
-               ("\\subsection{%s}" . "\\subsection*{%s}")
-               ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
-               ("\\paragraph{%s}" . "\\paragraph*{%s}")
-               ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+;; Mimore class is a latex class for writing articles.
+  (add-to-list 'org-latex-classes
+               '("mimore"
+                 "\\documentclass{mimore}
+ [NO-DEFAULT-PACKAGES]
+ [PACKAGES]
+ [EXTRA]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
+
+  ;; Mimosis is a class I used to write my Ph.D. thesis.
+  (add-to-list 'org-latex-classes
+               '("mimosis"
+                 "\\documentclass{mimosis}
+ [NO-DEFAULT-PACKAGES]
+ [PACKAGES]
+ [EXTRA]
+\\newcommand{\\mboxparagraph}[1]{\\paragraph{#1}\\mbox{}\\\\}
+\\newcommand{\\mboxsubparagraph}[1]{\\subparagraph{#1}\\mbox{}\\\\}"
+                 ("\\chapter{%s}" . "\\chapter*{%s}")
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\mboxparagraph{%s}" . "\\mboxparagraph*{%s}")
+                 ("\\mboxsubparagraph{%s}" . "\\mboxsubparagraph*{%s}")))
+
+  ;; Elsarticle is Elsevier class for publications.
+  (add-to-list 'org-latex-classes
+               '("elsarticle"
+                 "\\documentclass{elsarticle}
+ [NO-DEFAULT-PACKAGES]
+ [PACKAGES]
+ [EXTRA]"
+                 ("\\section{%s}" . "\\section*{%s}")
+                 ("\\subsection{%s}" . "\\subsection*{%s}")
+                 ("\\subsubsection{%s}" . "\\subsubsection*{%s}")
+                 ("\\paragraph{%s}" . "\\paragraph*{%s}")
+                 ("\\subparagraph{%s}" . "\\subparagraph*{%s}")))
 (setq org-latex-logfiles-extensions (quote ("lof" "lot" "tex" "aux" "idx" "log" "out" "toc" "nav" "snm" "vrb" "dvi" "fdb_latexmk" "blg" "brf" "fls" "entoc" "ps" "spl" "bbl" "pygtex" "pygstyle")))
 (setq org-latex-create-formula-image-program 'imagemagick)
 (add-to-list 'org-latex-packages-alist '("" "minted" "xcolor" "siunitx" "nicefrac"))
@@ -516,9 +581,36 @@ SCHEDULED: %^T
         bibtex-completion-library-path "~/Documents/PhD/Literature/pdfs")
 
   (setq bibtex-completion-find-additional-pdfs t)
-  (setq org-ref-completion-library 'org-ref-ivy-cite)
+  (setq org-ref-completion-library 'org-ref-helm-cite)
   (setq org-ref-show-broken-links t)
   (setq org-latex-prefer-user-labels t)
+
+  (defun org-ref-open-pdf-at-point-in-emacs ()
+    "Open the pdf for bibtex key under point if it exists."
+    (interactive)
+    (let* ((results (org-ref-get-bibtex-key-and-file))
+           (key (car results))
+           (pdf-file (funcall org-ref-get-pdf-filename-function key)))
+      (if (file-exists-p pdf-file)
+          (find-file-other-window pdf-file)
+        (message "no pdf found for %s" key))))
+
+  (defun org-ref-open-in-scihub ()
+    "Open the bibtex entry at point in a browser using the url field or doi field.
+Not for real use, just here for demonstration purposes."
+    (interactive)
+    (let ((doi (org-ref-get-doi-at-point)))
+      (when doi
+        (if (string-match "^http" doi)
+            (browse-url doi)
+          (browse-url (format "http://sci-hub.se/%s" doi)))
+        (message "No url or doi found"))))
+
+  (helm-add-action-to-source "Grep PDF" 'org-ref-grep-pdf helm-source-bibtex 1)
+
+  (setq org-ref-helm-user-candidates
+        '(("Open in Sci-hub"  . org-ref-open-in-scihub)
+          ("Open in Emacs" . org-ref-open-pdf-at-point-in-emacs)))
     )
 (use-package! org-noter
   :after (:any org pdf-view)
@@ -565,9 +657,8 @@ SCHEDULED: %^T
    )
   )
 (use-package! org-sidebar
-  :after org-mode
   :config
-  (setq org-sidebar-tree-jump-fn #'org-sicebar-tree-jump-source))
+  (setq org-sidebar-tree-jump-fn #'org-sidebar-tree-jump-source))
 (use-package! org-mime)
 ;; (add-to-list 'load-path "~/programs/beancount/editors/emacs")
   ;; (require 'beancount)
@@ -575,6 +666,28 @@ SCHEDULED: %^T
   (add-to-list 'auto-mode-alist '("\\.beancount\\'" . beancount-mode))  ;; Automatically open .beancount files in beancount-mode.
   (add-to-list 'auto-mode-alist '("\\.beancount$" . beancount-mode))
   (add-hook 'beancount-mode-hook 'outline-minor-mode))
+;; (use-package! lsp-ui
+;;     :requires use-package-hydra
+;;     :commands lsp-ui-mode
+;;     :config
+;;     (setq lsp-ui-sideline-enable t)
+    (setq lsp-log-io t)
+    (setq flycheck-checker-error-threshold 10000)
+    (setq lsp-ui-flycheck-list-position 'right)
+    (setq lsp-flycheck-live-reporting t)
+    (setq lsp-ui-peek-enable t)
+    (setq lsp-ui-peek-list-width 60)
+    (setq lsp-ui-peek-peek-height 25)
+    (setq lsp-ui-imenu-enable t)
+    (setq lsp-ui-doc-use-webkit t)
+(setq lsp-enable-on-type-formatting nil)
+    (setq lsp-ui-doc-enable t)
+(setq lsp-enable-completion-at-point t)
+(setq lsp-ui-doc-delay 0.1)
+(setq lsp-pyls-server-command '("mspyls"))
+    (setq lsp-ui-sideline-ignore-duplicate t)
+;; )
+(setq read-process-output-max (* 1024 2048)) ;; 1mb
 ;; (after! lsp-mode
 ;;   (use-package! lsp-python-ms
 ;;     :ensure t
@@ -591,7 +704,12 @@ SCHEDULED: %^T
 ;;   :hook (python-mode . (lambda ()
 ;;                           (require 'lsp-python-ms)
 ;;                           (lsp))))
-(setq lsp-pyls-server-command '("mspyls"))
+(after! jupyter
+  (set-lookup-handlers! '(jupyter-repl-mode jupyter-org-interaction-mode jupyter-repl-interaction-mode jupyter-repl-persistent-mode)
+    :documentation '(jupyter-inspect-at-point :async t)))
+;; (set-lookup-handlers! '(jupyter-repl-mode jupyter-org-interaction-mode jupyter-repl-interaction-mode)
+;;   :documentation #'jupyter-inspect-at-point
+;;   )
 ;;(setq vc-handled-backends nil)
 ;;(unpin! t)
 (setq auto-save-default t
@@ -623,9 +741,12 @@ SCHEDULED: %^T
 
 (add-hook 'before-save-hook  'force-backup-of-buffer)
 (add-load-path! "/usr/share/emacs/site-lisp/mu4e")
+(use-package! smtpmail)
 (use-package! mu4e
   :config
 (remove-hook 'mu4e-main-mode-hook 'evil-collection-mu4e-update-main-view)
-  (load! "mu4e-config.el"))
+  (load! "mu4e-config.el")
+ )
 ;(use-package!
 ;    snails)
+(add-hook 'org-mode-hook 'turn-off-smartparens-mode)
