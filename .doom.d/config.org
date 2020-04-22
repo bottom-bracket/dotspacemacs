@@ -20,7 +20,10 @@
  ;;
  ;; + `doom-font'
  ;; + `dnction. This is the default:
- (setq doom-theme 'doom-acario-light)
+(setq doom-theme 'doom-Iosvkem)
+(setq doom-font (font-spec :family "Fira Code" :size 13 :weight 'normal))
+(custom-set-faces! '(variable-pitch :family "Minion Pro" :height 1.2))
+;; (setq doom-variable-pitch-font (font-spec :family "Times New Roman" :weight 'normal))
  #+END_SRC
 
  Org-Dir
@@ -55,6 +58,10 @@ Kill Ring
 #+BEGIN_SRC emacs-lisp
 (use-package! popup-kill-ring)
 #+END_SRC
+Keep ~auto-fill-mode~ enabled in text modes:
+#+BEGIN_SRC emacs-lisp
+(add-hook 'text-mode-hook #'auto-fill-mode)
+#+END_SRC
 * Eyecandy
 #+BEGIN_SRC emacs-lisp
 (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
@@ -87,7 +94,7 @@ Kill Ring
      :desc "Toggle LaTeX fragment" "X" #'org-latex-preview
      :desc "Copy Email html to clipboard" "M" #'export-org-email
      :desc "Screenshot" "S" #'org-screenshot-take
-     :desc "Toggle Sidebar Tree" "m" #'org-sidebar-tree-toggle
+     ;; :desc "Toggle Sidebar Tree" "m" #'org-sidebar-tree-toggle
      :desc "Org-Ref" "R" #'org-ref
 ;     (:prefix "o"
 ;       :desc "Tags" "t" 'org-set-tags
@@ -165,6 +172,18 @@ Raise popup buffer to ~spc-m-r~
 (map! :leader
       :desc "Raise Popup Buffer" "w m r" #'+popup/raise
       )
+
+#+END_SRC
+** Toggle Smartparens
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+     (:desc "Smartparens Mode" "t k" #'smartparens-mode))
+#+END_SRC
+
+** Open project agenda
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      (:desc "Agenda on Project .orgs" "o k" #'org-project-agenda))
 
 #+END_SRC
 * Functions
@@ -341,6 +360,13 @@ A nice flyspell menu
   ("f" flyspell-buffer)
   ("m" flyspell-mode))
 #+END_SRC
+** Call Agenda with current Project's org files
+#+BEGIN_SRC emacs-lisp
+(defun org-project-agenda ()
+  (interactive)
+  (let ((org-agenda-files (doom-files-in (or (doom-project-root) default-directory) :match "\\.org$" :full t)))
+    (call-interactively #'org-agenda)))
+#+END_SRC
 * Completion
 #+BEGIN_SRC emacs-lisp
 ;; (use-package! company-tabnine
@@ -465,8 +491,7 @@ use helm-org-rifle
 Set ~+org-vars~
 #+BEGIN_SRC emacs-lisp
 (after! org
-(setq org-directory "/home/philip/Documents/org/"
-      org-archive-location (concat org-directory "archive/%s::")
+(setq org-archive-location (concat org-directory "archive/%s::")
       +org-capture-journal-file (concat org-directory "tagebuechlein.org.gpg")))
 #+END_SRC
 Log time when things get marked as done
@@ -493,9 +518,29 @@ image size
 #+BEGIN_SRC emacs-lisp
 (setq org-image-actual-width '(400))
 #+END_SRC
+org source popups in window at the right
 #+BEGIN_SRC emacs-lisp
 (after! org
   (set-popup-rule! "^\\*Org Src*" :side 'right :size 0.5))
+#+END_SRC
+enable variable pitch for text in org mode
+#+BEGIN_SRC emacs-lisp
+(add-hook 'text-mode-hook #'mixed-pitch-mode)
+#+END_SRC
+prettify item bullets as well
+#+BEGIN_SRC emacs-lisp
+(after! org
+(setq org-superstar-prettify-item-bullets t))
+(custom-set-faces!
+  '(outline-1 :weight extra-bold :height 1.6 :underline t)
+  '(outline-2 :weight bold :height 1.5)
+  '(outline-3 :weight bold :height 1.4)
+  '(outline-4 :weight semi-bold :height 1.4)
+  '(outline-5 :weight semi-bold :height 1.3)
+  '(outline-6 :weight semi-bold :height 1.2)
+  '(outline-7 :weight semi-bold :height 1.2)
+  '(outline-8 :weight semi-bold :height 1.1)
+  '(outline-9 :weight semi-bold :height 1.1))
 #+END_SRC
 *** Org FsTree
 
@@ -593,12 +638,20 @@ Other
        ))
 #+END_SRC
 *** Org Agenda
+define agenda files for personal and professional use
+#+BEGIN_SRC emacs-lisp
+(defvar my-org-agenda-files-personal '("~/Documents/org/PhD.org.gpg" "~/Documents/Research/index.org"  "~/Documents/org/personal.org.gpg" "~/Documents/org/gcal.org" ))
+(defvar my-org-agenda-files-professional '("~/Documents/org/PhD.org.gpg" "~/Documents/Research/index.org" ))
+(setq org-agenda-files (append my-org-agenda-files-personal (doom-files-in "~/Documents/Research" :match "\\.org$" :full t)))
+#+END_SRC
 #+BEGIN_SRC emacs-lisp
 (after! org
   (setq org-agenda-custom-commands
         '(("c" "Simple agenda view"
            ((agenda "")
-            (alltodo ""))))))
+            (alltodo ""))))
+        org-agenda-files my-org-agenda-files-personal
+        ))
 #+END_SRC
 *** Org Google Calender
 #+BEGIN_SRC emacs-lisp
@@ -623,6 +676,14 @@ Other
   (setq org-brain-title-max-length 12)
   (setq org-brain-include-file-entries nil
         org-brain-file-entries-use-title nil)
+#+END_SRC
+*** Org Roam
+#+BEGIN_SRC emacs-lisp
+(after! org-roam
+  (setq org-roam-directory "~/Documents/org/zettel/")
+  (setq org-roam-encrypt-files t)
+  (setq org-roam-link-title-format "R:%s")
+)
 #+END_SRC
 *** Org Babel
 **** Misc
@@ -809,11 +870,10 @@ Hopefully fixes crashes in repl:
 
   (setq org-ref-default-bibliography '("~/Documents/PhD/Literaturebib/library_org.bib")
         org-ref-pdf-directory "~/Documents/PhD/Literature/pdfs/"
-        org-ref-bibliography-notes "~/Documents/PhD/Literaturebib/notes.org"
-        org-ref-notes-directory "~/Documents/PhD/Literaturebib/notes/"
+        ;; org-ref-bibliography-notes "~/Documents/PhD/Literaturebib/notes.org"
+        org-ref-notes-directory "~/Documents/Research/zettel/biblio/"
         reftex-default-bibliography '("~/Documents/PhD/Literaturebib/library_org.bib")
-        ;;bibtex-completion-notes "~/Documents/PhD/Literature.bib/notes"
-        bibtex-completion-notes-path "~/Documents/PhD/Literaturebib/notes.org"
+        bibtex-completion-notes-path "~/Documents/Research/zettel/biblio/"
         bibtex-completion-bibliography "~/Documents/PhD/Literaturebib/library_org.bib"
         bibtex-completion-library-path "~/Documents/PhD/Literature/pdfs")
 
@@ -893,7 +953,7 @@ Not for real use, just here for demonstration purposes."
    org-noter-always-create-frame nil
    ;; I want to see the whole file
    org-noter-hide-other nil
-   org-noter-notes-search-path "~/Documents/PhD/Literature.bib/notes"
+   org-noter-notes-search-path "~/Documents/Research/zettel/biblio"
    )
   )
 #+END_SRC
@@ -906,6 +966,34 @@ Not for real use, just here for demonstration purposes."
 *** Org Mime
 #+BEGIN_SRC emacs-lisp
 (use-package! org-mime)
+#+END_SRC
+*** Org Journal
+Activated in doom init.
+#+BEGIN_SRC emacs-lisp
+(after! org-journal
+   (setq org-journal-file-type 'daily)
+   (setq org-journal-date-prefix "#+TITLE: ")
+   (setq org-journal-file-format "%Y-%m-%d.org")
+   (setq org-journal-dir "~/Documents/org/journal/")
+   (setq org-journal-date-format "%A, %d %B %Y")
+)
+#+END_SRC
+*** Deft
+#+BEGIN_SRC emacs-lisp
+(after! deft
+  (setq deft-recursive t
+        deft-use-filter-string-for-filename t
+        deft-default-extension "org"
+        deft-directory "~/Documents/org/zettels/"))
+#+END_SRC
+
+** Mathpix
+#+BEGIN_SRC emacs-lisp
+;; (use-package! mathpix.el
+;;   :config
+;;   (setq mathpix-app-id "app-id")
+;;   (setq mathpix-app-key "app-key")
+;;   )
 #+END_SRC
 ** Beancount
 Recognise beancount files

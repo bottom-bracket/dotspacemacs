@@ -69,6 +69,7 @@
 (package! org-sidebar)
 (package! org-mime)
 (package! org-preview-html)
+;; (package! org-journal)
 ;; Org Ref
 (package! org-ref)
 (package! org-noter)
@@ -91,6 +92,9 @@
 (package! company-tabnine :disable t)
 (package! company-lsp :disable nil)
 (package! company-math)
+(package! mathpix.el
+  :recipe (:host github :repo "jethrokuan/mathpix.el")
+)
 ;; (package! dired+)
 ;; (package! snails
 ;;   :recipe (:host github :repo "manateelazycat/snails" :files ("*.el" "*.sh") :no-byte-compile t))
