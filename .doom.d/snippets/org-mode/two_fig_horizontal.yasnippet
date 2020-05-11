@@ -1,0 +1,24 @@
+# -*- mode: snippet -*-
+# name: Two figures horizontal (for latex)
+# uuid:
+# key: lfighor
+# condition: (= (current-column) 7)
+# --
+
+#+NAME: fig:${2:main label}
+#+CAPTION:${1:main caption}
+#+BEGIN_figure
+\centering
+#+NAME: fig:${3:first label}
+#+ATTR_LATEX: :options [c]{0.5\textwidth}
+#+BEGIN_subfigure
+\includegraphics[width=1\textwidth]{$0}
+\subcaption{${5:first subcaption}}
+#+END_subfigure
+#+NAME: fig:${4:second label}
+#+ATTR_LATEX: :options [c]{0.5\textwidth}
+#+BEGIN_subfigure
+\includegraphics[width=1\textwidth]{/pathtofig2.png}
+\subcaption{${6:second subcaption}}
+#+END_subfigure
+#+END_figure

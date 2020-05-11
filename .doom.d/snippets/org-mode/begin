@@ -1,6 +1,7 @@
 # -*- mode: snippet -*-
-# name: begin
-# key: begin
+# name: Latex_begin_env
+# key: beginm
+# group: environments
 # --
 \begin{${1:environment}}
 $0

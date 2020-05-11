@@ -1,0 +1,8 @@
+# -*- mode: snippet -*-
+# name: ipython block short
+# key: ipys
+# --
+#+NAME: ${1:`(make-temp-name "")`}
+#+BEGIN_SRC jupyter-python ${2::session ${3:`(file-name-base (buffer-file-name))`}} :exports ${4:$$(yas-choose-value '("both" "results" "code" "none"))} :tangle ./src/$3.py
+  $0
+#+END_SRC
