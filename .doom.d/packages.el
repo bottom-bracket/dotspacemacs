@@ -53,6 +53,8 @@
 
 (package! flycheck-popup-tip ) ;:disable t)
 
+(package! blacken :recipe (:local-repo "./modules/python"
+                                  :files ("blacken.el")))
 (package! beancount :recipe (:local-repo "~/programs/beancount/editors/emacs"
                                          :files ("beancount.el")))
 ;; * Mail
@@ -69,29 +71,35 @@
 (package! org-sidebar)
 (package! org-mime)
 (package! org-preview-html)
-;; (package! org-journal)
+;; toggel latex fragments automatically
+(package! org-fragtog :pin "8eca8084cc")
+;; better agenda
+(package! org-super-agenda :pin "dd0d104c26")
+;; Declarative Org Capture Templates
+(package! doct
+  :recipe (:host github :repo "progfolio/doct")
+  :pin "c237e72e0b")
+;; org graph view: give it another try
+(package! org-graph-view :recipe (:host github :repo "alphapapa/org-graph-view") :pin "13314338d7")
 ;; Org Ref
 (package! org-ref)
 (package! org-noter)
+(package! theme-magic)
 ;; Python
-;; (package! lsp-python-ms)
-;; (package! lsp-treemacs)
-;; (package! helm-lsp)
 ;;
 ;; * Other
-(package! simple-httpd)
-(package! websocket)
+;; (package! simple-httpd)
+;; (package! websocket)
 (package! ranger)
 
-(package! evil-goggles)
-;; (package! evil-surround)
-(package! evil-collection)
+;; (package! evil-goggles)
+;; (package! evil-collection)
 (package! popup-kill-ring)
 
 (package! helm-org-rifle)
 (package! company-tabnine :disable t)
 (package! company-lsp :disable nil)
-(package! company-math)
+;; (package! company-math)
 (package! mathpix.el
   :recipe (:host github :repo "jethrokuan/mathpix.el")
 )
@@ -106,3 +114,9 @@
 
 (package! ox-koma-letter :recipe (:local-repo "./modules/org"
                                   :files ("ox-koma-letter.el")))
+
+(package! calctex :recipe (:host github :repo "johnbcoughlin/calctex"
+                                 :files ("*.el")) :pin "542b628eb4")
+
+;; Flyspell improvements
+(package! flyspell-lazy)

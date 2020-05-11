@@ -10,7 +10,6 @@
  :n "C-a" (λ! (push (cons t ?w) unread-command-events)
               (push (cons t 32) unread-command-events))
 
- :leader "/" doom-leader-search-map
 
  (:after magit
    (:map with-editor-mode-map

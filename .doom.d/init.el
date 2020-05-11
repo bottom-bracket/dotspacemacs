@@ -14,15 +14,19 @@
 ;;      Alternatively, press 'gd' (or 'C-c g d') on a module to browse its
 ;;      directory (for easy access to its source code).
 
+;; (setq evil-respect-visual-line-mode t)
 (doom! :input
        ;;chinese
        ;;japanese
 
        :completion
        (company +childframe)          ; the ultimate code completion backend
-       helm              ; the *other* search engine for love and life
+       ;;helm              ; the *other* search engine for love and life
        ;;ido               ; the other *other* search engine...
-       ;;ivy               ; a search engine for love and life
+       (ivy +fuzzy
+            +precient
+            ;; +childframe
+            +icons) ; a search engine for love and life
 
        :ui
        deft              ; notational velocity for Emacs
@@ -39,9 +43,9 @@
        ophints           ; highlight the region an operation acts on
        (popup +defaults)   ; tame sudden yet inevitable temporary windows
        (pretty-code +fira)       ; replace bits of code with pretty symbols
-       ;;tabs              ; an tab bar for Emacs
+       ;; tabs              ; an tab bar for Emacs
        treemacs          ; a project drawer, like neotree but cooler
-       ;; unicode           ; extended unicode support for various languages
+       ;;unicode           ; extended unicode support for various languages
        vc-gutter         ; vcs diff in the fringe
        vi-tilde-fringe   ; fringe tildes to mark beyond EOB
        (window-select +numbers)    ; visually switch windows
@@ -83,25 +87,29 @@
 
        :tools
        ;;ansible
-       ;;debugger          ; FIXME stepping through code, to help you add bugs
+       biblio
+       debugger          ; FIXME stepping through code, to help you add bugs
        ;;direnv
        ;;docker
        editorconfig      ; let someone else argue about tabs vs spaces
        ;;ein               ; tame Jupyter notebooks with emacs
        (eval +overlay)     ; run code, run (also, repls)
        ;;gist              ; interacting with github gists
-       lookup              ; navigate your code and its documentation
+       (lookup
+        +dictionary
+        +offline
+        +docsets)              ; navigate your code and its documentation
        (lsp +peek)
        ;;macos             ; MacOS-specific commands
        magit             ; a git porcelain for Emacs
-       ;;make              ; run make tasks from Emacs
+       make              ; run make tasks from Emacs
        pass              ; password manager for nerds
        pdf               ; pdf enhancements
-       ;;prodigy           ; FIXME managing external services & code builders
+       prodigy           ; FIXME managing external services & code builders
        rgb               ; creating color strings
        ;;terraform         ; infrastructure as code
        ;;tmux              ; an API for interacting with tmux
-       ;;upload            ; map local to remote projects via ssh/ftp
+       upload            ; map local to remote projects via ssh/ftp
 
        :lang
        ;;agda              ; types of types of types of types...
@@ -131,7 +139,9 @@
        ;;kotlin            ; a better, slicker Java(Script)
        (latex           ; writing papers in Emacs has never been so fun
         +latexmk
-        +cdlatex)
+        +cdlatex
+        +fold
+        +lsp)
        ;;lean
        ;;factor
        ;;ledger            ; an accounting system in Emacs
@@ -145,7 +155,7 @@
         +hugo            ; use Emacs for hugo blogging
         +jupyter        ; ipython/jupyter support for babel
         +pandoc          ; export-with-pandoc support
-        ;;+pomodoro        ; be fruitful with the tomato technique
+        +pomodoro        ; be fruitful with the tomato technique
         +gnuplot
         +roam
         +journal
@@ -177,7 +187,7 @@
        ;;(wanderlust +gmail)
 
        :app
-       ;;calendar
+       calendar
        ;;irc               ; how neckbeards socialize
        ;;(rss +org)        ; emacs as an RSS reader
        ;;twitter           ; twitter client https://twitter.com/vnought
@@ -188,4 +198,3 @@
 
 
 
-(setq evil-respect-visual-line-mode t)
