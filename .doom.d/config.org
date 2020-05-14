@@ -20,7 +20,7 @@
  ;;
  ;; + `doom-font'
  ;; + `dnction. This is the default:
-(setq doom-theme 'doom-one)
+(setq doom-theme 'doom-henna)
 ;; (setq doom-font (font-spec :family "Fira Code" :size 13 :weight 'normal))
 
 (setq doom-font (font-spec :family "Fira Code" :size 14)
@@ -81,6 +81,13 @@ Keep ~auto-fill-mode~ enabled in text modes.
 (setq +ivy-buffer-preview t)
 #+END_SRC
 
+** Start server
+Start a server when I open emacs manually. This avoids weird behaviour when I
+use the systemctl service. Or at least I'll notice crashes more easily.
+#+BEGIN_SRC emacs-lisp
+(server-start)
+#+END_SRC
+
 * Eyecandy
 #+BEGIN_SRC emacs-lisp
 (setq doom-themes-treemacs-theme "doom-colors") ; use the colorful treemacs theme
@@ -95,6 +102,7 @@ Let's automatically update terminals on theme change
 (add-hook 'doom-load-theme-hook 'theme-magic-from-emacs)
 #+END_SRC
 * Evil everywhere
+TODO test if this is necessary
 #+BEGIN_SRC emacs-lisp
 (use-package! evil-collection
 ;    :after
@@ -110,7 +118,7 @@ Let's automatically update terminals on theme change
 #+END_SRC
 * Keybindings
 #+BEGIN_SRC emacs-lisp
-   (load! "bindings/spacemacs.el")
+   ;; (load! "bindings/spacemacs.el")
 #+END_SRC
 ** Org mode
 #+BEGIN_SRC emacs-lisp
@@ -485,6 +493,20 @@ need a function to activate one or the other.
   (setq org-attach-id-dir  "~/Documents/org/.org_attach/")
   (setq org-roam-encrypt-files t))
 #+END_SRC
+** regexp replace with RE-builder
+Use this function to pop up the regexp-replace dialog with the regexp built in
+RE-builder. Use the groups (defined by sth like  ~\([a-z]*=\)~ ) as variables ~\1~
+(and so on) in the replace section. Taken from the internet (TODO add link)
+#+BEGIN_SRC emacs-lisp
+(defun reb-query-replace (to-string)
+      "Replace current RE from point with `query-replace-regexp'."
+      (interactive
+       (progn (barf-if-buffer-read-only)
+              (list (query-replace-read-to (reb-target-binding reb-regexp)
+                                           "Query replace"  t))))
+      (with-current-buffer reb-target-buffer
+        (query-replace-regexp (reb-target-binding reb-regexp) to-string)))
+#+END_SRC
 
 * Completion
 #+BEGIN_SRC emacs-lisp
@@ -504,11 +526,11 @@ need a function to activate one or the other.
                   company-files))
 
   ;; (add-to-list 'company-backends #'company-tabnine)
-  (add-to-list 'company-backends #'company-files)
+  ;; (add-to-list 'company-backends #'company-files)
   (set-company-backend! 'text-mode
       '(:separate company-capf
         :separate company-ispell
-        company-keywords       ; keywords
+        ;; company-keywords       ; keywords
         :separate company-yasnippet
         ;; :separate company-dabbrev
         ;; :separate company-tabnine
@@ -534,12 +556,11 @@ need a function to activate one or the other.
     :after TeX-mode
     :config
     (set-company-backend! 'TeX-mode
-      '(:separate company-auctex
-        :separate company-capf
-        company-math-symbols-latex
-        company-latex-commands))
-    (setq company-tooltip-align-annotations t)
+      '(:separate company-capf
+        :separate company-auctex
+        :separate company-math-symbols-latex))
     (setq company-math-allow-latex-symbols-in-faces t))
+(setq company-tooltip-align-annotations t)
 (after! (:all org org-roam)
   (set-company-backend! 'org-mode
       '(:separate company-capf
@@ -554,6 +575,7 @@ need a function to activate one or the other.
      ; company-latex-commands
      )))
 #+END_SRC
+
 * Module Configuration
 ** evil
 I want ~j/k~  to behave normally when navigating through a wrapped line. Usually
@@ -561,6 +583,11 @@ this is the ~#+CAPTION:~ text in org mode. Actually this needs to go to init.el
 # #+BEGIN_SRC emacs-lisp
 # (setq evil-respect-visual-line-mode t)
 # #+END_SRC
+Escape when ~j/k~ are pressed quickly after each other in insert mode. Do not care
+for their order:
+#+BEGIN_SRC emacs-lisp
+(setq evil-escape-unordered-key-sequence t)
+#+END_SRC
 ** helm
 #+BEGIN_SRC emacs-lisp
 (after! helm
@@ -585,7 +612,10 @@ this is the ~#+CAPTION:~ text in org mode. Actually this needs to go to init.el
 )
 (after! latex
   (add-hook 'LaTex-mode-hook 'turn-on-cdlatex))
+
 (after! cdlatex
+(map! :map cdlatex-mode-map
+    :i "TAB" #'cdlatex-tab)
  (setq cdlatex-command-alist '(("ang"         "Insert \\ang{}"
                                "\\ang{?}" cdlatex-position-cursor nil t t)
                               ("si"          "Insert \\SI{}{}"
@@ -602,10 +632,23 @@ this is the ~#+CAPTION:~ text in org mode. Actually this needs to go to init.el
                                "\\numrange{?}{}" cdlatex-position-cursor nil t t)))
 )
 ;; Latex viewers
-(after! latex
-(setq +latex-viewers '(pdf-tools))
- )
+;(after! latex
+(setq +latex-viewers '(pdf-tools okular))
+; )
  #+END_SRC
+ Somehow the ~latex-viewers~ variable does not have any effect on the viewer used
+ by latexmk so I need another solution
+
+#+BEGIN_SRC emacs-lisp
+;; Use pdf-tools to open PDF files
+(setq TeX-view-program-selection '((output-pdf "PDF Tools"))
+      TeX-source-correlate-start-server t)
+
+;; Update PDF buffers after successful LaTeX runs
+(add-hook 'TeX-after-compilation-finished-functions
+          #'TeX-revert-document-buffer)
+#+END_SRC
+
 ** eshell
 Get rid of modeline in eshell buffers
 #+BEGIN_SRC emacs-lisp
@@ -617,7 +660,6 @@ Get rid of modeline in eshell buffers
 (add-hook 'term-mode-hook #'hide-mode-line-mode)
 #+END_SRC
 ** org
-
 *** Misc
 Start in insert mode in =org-capture=
 #+BEGIN_SRC emacs-lisp
@@ -678,6 +720,11 @@ prettify item bullets as well
   '(outline-8 :weight semi-bold :height 1.1)
   '(outline-9 :weight semi-bold :height 1.1)
   '(outline-10 :weight semi-bold :height 1.1))
+#+END_SRC
+*** Macros
+Load macros from ~macros.el~
+#+BEGIN_SRC emacs-lisp
+(load "lisp/org-macros.el")
 #+END_SRC
 *** org pretty mode
 enable variable pitch for text in org mode (not included in org-pretty)
@@ -912,7 +959,7 @@ SCHEDULED: %^T
           ("wa" "Appointment (sync)" entry (file  "gcal-work.org" ) "* %?\n\n%^T\n\n:PROPERTIES:\n\n:END:\n\n")
           ("p" "Personal templates")
           ("pt" "TODO entry" entry
-           (file+headline "personal.org" "Capture")
+           (file+headline "personal.org.gpg" "Capture")
            ( file "tpl_todo.txt" ) :empty-lines-before 1)
           ("pl" "Logbook entry" entry (file+datetree "tagebuechlein.org.gpg") "** %U - %^{Activity}  :LOG:")
           ("pw" "Link" entry (file+headline "personal.org.gpg" "Links") "* %? %^L %^g \n%T" :prepend t)
@@ -943,7 +990,8 @@ define agenda files for personal and professional use.
 #+BEGIN_SRC emacs-lisp
 (defvar my-org-agenda-files-personal '("~/Documents/org/PhD.org.gpg" "~/Documents/Research/index.org"  "~/Documents/org/personal.org.gpg" "~/Documents/org/gcal.org" ))
 (defvar my-org-agenda-files-professional '("~/Documents/org/PhD.org.gpg" "~/Documents/Research/index.org" ))
-(setq org-agenda-files (append my-org-agenda-files-personal (doom-files-in "~/Documents/Research" :match "\\.org$" :full t)))
+;; (setq org-agenda-files (append my-org-agenda-files-personal (doom-files-in "~/Documents/Research" :match "\\.org$" :full t)))
+(setq org-agenda-files my-org-agenda-files-personal)
 
 ;; (after! org
 ;;   (setq
@@ -1036,6 +1084,14 @@ Some settings I copied from ~@tecosaur~
   (setq org-log-reschedule (quote note))
   (setq org-log-repeat (quote note))
 #+END_SRC
+*** Org download
+Avoid cryptic attach style directories:
+#+BEGIN_SRC emacs-lisp
+(after! org-download
+  (setq org-download-image-dir "./img/"
+        org-download-heading-lvl 0
+        org-download-method 'directory))
+#+END_SRC
 *** Org Brain
 #+BEGIN_SRC emacs-lisp
   (setq org-brain-path "~/Documents/org/brain")
@@ -1050,13 +1106,24 @@ Some settings I copied from ~@tecosaur~
   (setq org-roam-directory "~/Documents/org/zettel/")
   (setq org-roam-encrypt-files t)
   (setq org-roam-link-title-format "R:%s")
-)
+  )
 (setq org-roam-capture-templates
       '(("d" "default" plain (function org-roam-capture--get-point)
          "- tags :: %?\n- source :: \n"
          :file-name "${slug}-%<%Y%m%d%H%M%S>"
          :head "#+TITLE: ${title}\n"
          :unnarrowed t)))
+(setq org-roam-capture-ref-templates
+      '(("r" "ref" plain #'org-roam-capture--get-point
+         "- tags :: ${tags}\n\n %?"
+         :file-name "${slug}-%<%Y%m%d%H%M%S>"
+         :head
+         "#+TITLE: ${title}\n#+ROAM_KEY: ${ref}\n"
+         :unnarrowed t)))
+#+END_SRC
+Org roam server:
+#+BEGIN_SRC emacs-lisp
+(use-package! org-roam-server)
 #+END_SRC
 *** Org Babel
 **** Misc
@@ -1419,7 +1486,6 @@ When storing a link we want to use a link to the headlines ID.
 (setq org-id-link-to-org-use-id 'create-if-interactive-and-no-custom-id))
 #+END_SRC
 
-
 *** Org noter
 #+BEGIN_SRC emacs-lisp
 (use-package! org-noter
@@ -1511,9 +1577,11 @@ It's also nice to make use of the Unicode characters for check boxes, and other 
               :results      "🠶"
               :property     "☸"
               :properties   "⚙"
+              :logbook      "📘"
               :end          "∎"
               :options      "⌥"
               :title        "𝙏"
+              :email        "⟰"
               :author       "𝘼"
               :date         "𝘿"
               :latex_header "⇥"
@@ -1530,9 +1598,11 @@ It's also nice to make use of the Unicode characters for check boxes, and other 
     :results      "#+RESULTS:"
     :property     "#+PROPERTY:"
     :property     ":PROPERTIES:"
+    :logbook      ":LOGBOOK:"
     :end          ":END:"
     :options      "#+OPTIONS:"
     :title        "#+TITLE:"
+    :email        "#+EMAIL:"
     :author       "#+AUTHOR:"
     :date         "#+DATE:"
     :latex_header "#+LATEX_HEADER:"
@@ -1728,6 +1798,45 @@ I added this because pdfs opened with bibref would open in okular.
         ("\\.mkv" . "vlc \"%s\"")))
 #+END_SRC
 
+*** changing todo status
+:PROPERTIES:
+:ID:       cb44cef0-012a-4124-8b24-faea3c6b2b7c
+:END:
+This is from the org-mode docs
+https://orgmode.org/worg/org-hacks.html#mark-done-when-all-checkboxes-checked.
+It will change a todo state when all checkboxes in the list it's containing are toggled.
+#+BEGIN_SRC emacs-lisp
+;; see http://thread.gmane.org/gmane.emacs.orgmode/42715
+(add-hook 'org-checkbox-statistics-hook (function ndk/checkbox-list-complete))
+
+(defun ndk/checkbox-list-complete ()
+  (save-excursion
+    (org-back-to-heading t)
+    (let ((beg (point)) end)
+      (end-of-line)
+      (setq end (point))
+      (goto-char beg)
+      (if (re-search-forward "\\[\\([0-9]*%\\)\\]\\|\\[\\([0-9]*\\)/\\([0-9]*\\)\\]" end t)
+            (if (match-end 1)
+                (if (equal (match-string 1) "100%")
+                    ;; all done - do the state change
+                    (org-todo 'done)
+                  (org-todo 'todo))
+              (if (and (> (match-end 2) (match-beginning 2))
+                       (equal (match-string 2) (match-string 3)))
+                  (org-todo 'done)
+                (org-todo 'todo)))))))
+#+END_SRC
+This snippet will automatically change a heading to DONE if all subheadings are
+DONE as well. Taken from (https://emacs.stackexchange.com/questions/19843/how-to-automatically-adjust-an-org-task-state-with-its-children-checkboxes)
+#+BEGIN_SRC emacs-lisp
+(defun org-summary-todo (n-done n-not-done)
+  "Switch entry to DONE when all subentries are done, to TODO otherwise."
+  (let (org-log-done org-log-states)   ; turn off logging
+    (org-todo (if (= n-not-done 0) "DONE" "TODO"))))
+
+(add-hook 'org-after-todo-statistics-hook 'org-summary-todo)
+#+END_SRC
 ** Mathpix
 #+BEGIN_SRC emacs-lisp
 ;; (use-package! mathpix.el
@@ -1736,6 +1845,7 @@ I added this because pdfs opened with bibref would open in okular.
 ;;   (setq mathpix-app-key "app-key")
 ;;   )
 #+END_SRC
+
 ** Beancount
 Recognise beancount files
 #+BEGIN_SRC emacs-lisp
@@ -1817,9 +1927,10 @@ Use blacken instead of ~SPC c f~ because it works better
 ** Backup
 autosave
 #+BEGIN_SRC emacs-lisp
+(auto-save-visited-mode +1) ;;may be redundant with auto-save-default
 (setq auto-save-default t
-      auto-save-timeout 10
-      auto-save-interval 150)
+      auto-save-timeout 5
+      auto-save-interval 100)
 (setq auto-save-file-name-transforms
   `((".*" "~/.emacs-saves/" t)))
 #+END_SRC
@@ -2009,8 +2120,9 @@ to take notes while viewing the pdf.
 ;; (setq bibtex-completion-notes-template-multiple-files "${author-or-editor} - ${year}: ${title}\n#+ROAM_KEY: cite:${=key=}\n\n- keywords :: ${keywords}\n\n* Notes on ${title}\n:PROPERTIES:\n:NOTER_DOCUMENT: ${file}\n:END:\n\n")
 (setq bibtex-completion-notes-template-multiple-files
 (concat
-  "#+TITLE: ${title}\n"
+  "${author-abbrev}: ${title}\n"
   "#+ROAM_KEY: cite:${=key=}\n\n"
+  "- tags :: \n"
   "- keywords :: ${keywords}\n\n"
   "* TODO Notes\n"
   ":PROPERTIES:\n"

@@ -8,5 +8,6 @@
     ("freqs" "frequencies" nil :count 2)
     ("frq" "frequency" nil :count 0)
     ("mistkake" "mistake" nil :count 0)
+    ("phaenomenological" "Phenomenological" nil :count 0)
    ))
 

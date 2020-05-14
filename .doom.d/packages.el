@@ -50,6 +50,7 @@
 ;; our package manager can't deal with; see raxod502/straight.el#279)
 ;(package! builtin-package :recipe (:branch "develop"))
 
+(unpin! org-roam)
 
 (package! flycheck-popup-tip ) ;:disable t)
 
@@ -81,6 +82,8 @@
   :pin "c237e72e0b")
 ;; org graph view: give it another try
 (package! org-graph-view :recipe (:host github :repo "alphapapa/org-graph-view") :pin "13314338d7")
+
+(package! org-roam-server :recipe (:host github :repo "org-roam/org-roam-server" :files ("*")))
 ;; Org Ref
 (package! org-ref)
 (package! org-noter)
@@ -88,12 +91,7 @@
 ;; Python
 ;;
 ;; * Other
-;; (package! simple-httpd)
-;; (package! websocket)
-(package! ranger)
 
-;; (package! evil-goggles)
-;; (package! evil-collection)
 (package! popup-kill-ring)
 
 (package! helm-org-rifle)
