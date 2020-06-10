@@ -80,7 +80,20 @@ Keep ~auto-fill-mode~ enabled in text modes.
   (+ivy/switch-buffer))
 (setq +ivy-buffer-preview t)
 #+END_SRC
+Add additional split option to the ivy actions for new file/buffer
+#+BEGIN_SRC emacs-lisp
+(after! ivy
+  (ivy-set-actions
+   'ivy-switch-buffer
+   '(("-" evil-window-split "split horizontally")
+     ("|" evil-window-vsplit "split vertically")))
+  (ivy-set-actions
+   'counsel-find-file
+   '(("-" evil-window-split "split horizontally")
+     ("|" evil-window-vsplit "split vertically"))))
 
+
+#+END_SRC
 ** Start server
 Start a server when I open emacs manually. This avoids weird behaviour when I
 use the systemctl service. Or at least I'll notice crashes more easily.
@@ -117,9 +130,6 @@ TODO test if this is necessary
   (global-evil-surround-mode 1))
 #+END_SRC
 * Keybindings
-#+BEGIN_SRC emacs-lisp
-   ;; (load! "bindings/spacemacs.el")
-#+END_SRC
 ** Org mode
 #+BEGIN_SRC emacs-lisp
 (map! :map org-mode-map
@@ -148,6 +158,16 @@ TODO test if this is necessary
          :desc "Normal Subheading" "s" #'org-insert-subheading
          :desc "Todo Subheading" "S" #'org-insert-todo-subheading)
      )
+;; (map! :map jupyter-org-interaction-mode-map
+;;      :nv "gb" #'jupyter-eval-line-or-region)
+#+END_SRC
+#+BEGIN_SRC emacs-lisp
+(map! :after jupyter-org-client
+      :map jupyter-org-interaction-mode-map
+      :nv "gr" (cmd! (jupyter-org--call-with-src-block-client #'jupyter-eval-line-or-region))
+      :desc "jupyter: hydra/body" ; dispatcher for everything else
+        :nv "gb" #'jupyter-org-hydra/body
+      )
 #+END_SRC
 Set sidebar jump to ~S-RET~ since ~RET~ is not working (if I ever find out how, it
 would be the better option to use)
@@ -278,6 +298,28 @@ Bind j and k to visual line navigation. This keeps ~dd/cc~  as it is.
 (map! :n "k" #'evil-previous-visual-line)
 #+END_SRC
 
+** Google Translate at point
+#+BEGIN_SRC emacs-lisp
+(map! :leader
+      "sB" #'google-translate-at-point)
+
+#+END_SRC
+
+** Tab in Ivy
+I think I want something like this from  [[https://discordapp.com/channels/406534637242810369/603399769015975996/713817630204493884][Discord]]
+#+BEGIN_SRC emacs-lisp
+(map! :map ivy-minibuffer-map
+      :g "TAB" #'ivy-partial-or-done)
+#+END_SRC
+** Free tab in company
+#+BEGIN_SRC emacs-lisp
+(map! (:after company
+( :map company-active-map
+        "<tab>" nil
+        "TAB" nil
+        "C-SPC" 'company-complete-common-or-cycle)))
+
+#+END_SRC
 * Functions
 ** Select heading in capture
 #+BEGIN_SRC emacs-lisp
@@ -508,72 +550,112 @@ RE-builder. Use the groups (defined by sth like  ~\([a-z]*=\)~ ) as variables ~\
         (query-replace-regexp (reb-target-binding reb-regexp) to-string)))
 #+END_SRC
 
+
+
+** TODO Word Statistics on Buffer
+Took this from the stackexchange question [[https://emacs.stackexchange.com/questions/13514/how-to-obtain-the-statistic-of-the-the-frequency-of-words-in-a-buffer][elisp - How to obtain the statistic of the the frequency of words in a buffer...]]
+Does not work as expeted. Needs tuning or another design
+#+BEGIN_SRC emacs-lisp
+(require 'cl-lib)
+;  "List of Punctuation Marks that you want to count."
+(defvar punctuation-marks '(","
+                            "."
+                            "'"
+                            "&"
+                            "\"")
+  )
+
+(defun count-raw-word-list (raw-word-list)
+  (cl-loop with result = nil
+           for elt in raw-word-list
+           do (cl-incf (cdr (or (assoc elt result)
+                             (first (push (cons elt 0) result)))))
+           finally return (sort result
+                                (lambda (a b) (string< (car a) (car b))))))
+
+(defun word-stats ()
+  (interactive)
+  (let* ((words (split-string
+                 (downcase (buffer-string))
+                 (format "[ %s\f\t\n\r\v]+"
+                         (mapconcat #'identity punctuation-marks ""))
+                 t))
+         (punctuation-marks (cl-remove-if-not
+                             (lambda (elt) (member elt punctuation-marks))
+                             (split-string (buffer-string) "" t )))
+         (raw-word-list (append punctuation-marks words))
+         (word-list (count-raw-word-list raw-word-list)))
+    (with-current-buffer (get-buffer-create "*word-statistics*")
+      (erase-buffer)
+      (insert "| word | occurences |
+               |-----------+------------|\n")
+
+      (dolist (elt word-list)
+        (insert (format "| '%s' | %d |\n" (car elt) (cdr elt))))
+
+      (org-mode)
+      (indent-region (point-min) (point-max))
+      (goto-char 100)
+      (org-cycle)
+      (goto-char 79)
+      (org-table-sort-lines nil ?N)))
+  (pop-to-buffer "*word-statistics*"))
+#+END_SRC
 * Completion
 #+BEGIN_SRC emacs-lisp
 ;; (use-package! company-tabnine
 ;;   )
 
 (after! (:any company)
-(setq-default company-backends
-                `((company-capf         ; `completion-at-point-functions'
-                   ;; :separate company-tabnine
-                   :separate company-yasnippet
-                   :separate company-keywords
-                   ;; :separate company-abbrev
-                   :separate company-files)
-                  company-ispell
-                  company-dabbrev-code
-                  company-files))
+;; (setq-default company-backends
+;;                 `((company-capf         ; `completion-at-point-functions'
+;;                    :separate company-yasnippet
+;;                    :separate company-keywords
+;;                    :separate company-files)
+;;                   company-ispell
+;;                   company-dabbrev-code
+;;                   company-files))
 
-  ;; (add-to-list 'company-backends #'company-tabnine)
-  ;; (add-to-list 'company-backends #'company-files)
   (set-company-backend! 'text-mode
       '(:separate company-capf
         :separate company-ispell
-        ;; company-keywords       ; keywords
         :separate company-yasnippet
-        ;; :separate company-dabbrev
-        ;; :separate company-tabnine
         :separate company-files
-     ; company-math-symbols-latex ; may  not need those as there is cdlatex mode
-     ; company-latex-commands
      ))
-  ;; (setq +lsp-company-backend '(company-capf))
-  ;  :with company-files
-  ;  company-tabnine
-  ;  :separate
-  ;; Trigger completion immediately.
-(setq company-idle-delay 0.10)
-  ;; reduce prefix length (for lsp)
+
+(setq company-idle-delay 0.05)
+(setq company-tooltip-idle-delay 0.05)
+(setq company-box-doc-delay 1.2)
+;; reduce prefix length (for lsp)
 (setq company-minimum-prefix-length 2)
-  ;; Number the candidates (use M-1, M-2 etc to select completions).
-  (setq company-show-numbers t)
-  (map! :map company-active-map
-        "<tab>" nil
-        "TAB" nil
-        "C-SPC" 'company-complete-common-or-cycle))
-  (use-package! company-math
-    :after TeX-mode
-    :config
-    (set-company-backend! 'TeX-mode
-      '(:separate company-capf
-        :separate company-auctex
-        :separate company-math-symbols-latex))
-    (setq company-math-allow-latex-symbols-in-faces t))
+;; Number the candidates (use M-1, M-2 etc to select completions).
+(setq company-show-numbers t)
 (setq company-tooltip-align-annotations t)
-(after! (:all org org-roam)
+)
+
+
+(after! (:any org org-roam)
   (set-company-backend! 'org-mode
-      '(:separate company-capf
-        :separate company-org-roam
+      '(
+        :separate company-capf
         :separate company-ispell
-        ;;company-keywords       ; keywords
+        :separate company-org-roam
+                  company-dabbrev
         :separate company-yasnippet
-        :separate company-dabbrev
-        ;; :separate company-tabnine
         :separate company-files
-     ; company-math-symbols-latex ; may  not need those as there is cdlatex mode
-     ; company-latex-commands
      )))
+#+END_SRC
+Use company-math in TeX mode
+#+BEGIN_SRC emacs-lisp
+(use-package! company-math
+:after TeX-mode
+:config
+(set-company-backend! 'TeX-mode
+    '(:separate company-capf
+    :separate company-auctex
+    :separate company-math-symbols-latex))
+(setq company-math-allow-latex-symbols-in-faces t))
+
 #+END_SRC
 
 * Module Configuration
@@ -595,6 +677,11 @@ for their order:
 (setq helm-mode-fuzzy-match t)
 (setq helm-completion-in-region-fuzzy-match t)
 )
+#+END_SRC
+** ivy
+Get a fancier action selection on ~C-o~
+#+BEGIN_SRC emacs-lisp
+(after! ivy (setq ivy-read-action-function #'ivy-hydra-read-action))
 #+END_SRC
 ** LaTeX
 #+BEGIN_SRC emacs-lisp
@@ -724,15 +811,21 @@ prettify item bullets as well
 *** Macros
 Load macros from ~macros.el~
 #+BEGIN_SRC emacs-lisp
-(load "lisp/org-macros.el")
+(load "~/.dotfiles/.doom.d/lisp/org-macros.el")
 #+END_SRC
 *** org pretty mode
 enable variable pitch for text in org mode (not included in org-pretty)
 #+BEGIN_SRC emacs-lisp
 (add-hook 'org-mode-hook #'mixed-pitch-mode)
 #+END_SRC
+Enable org pretty but disable rendering of subscripts as editing is quite painful
 #+BEGIN_SRC emacs-lisp
+(after! org
+    (setq org-pretty-entities-include-sub-superscripts nil)
+)
 (add-hook! org-mode +org-pretty-mode)
+
+
 #+END_SRC
 *** Org FsTree
 
@@ -741,10 +834,11 @@ enable variable pitch for text in org mode (not included in org-pretty)
 (use-package! org-preview-html)
 #+END_SRC
 *** Org Export
-Don't export table of contents
+Don't export table of contents and set async export
 #+BEGIN_SRC emacs-lisp
 (after! org
-  (setq org-export-with-toc nil))
+  (setq org-export-with-toc nil
+        org-export-in-background t ))
 #+END_SRC
 Ignore Headlines to avoid messy exports when exporting files that include other org files.
 #+BEGIN_SRC emacs-lisp
@@ -1160,8 +1254,11 @@ It would be cool to try this :)
 ****    Jupyter and Julia
 Enable interaction mode in org mode
 #+BEGIN_SRC emacs-lisp
- ;; (add-hook! org-mode
- ;;   (jupyter-org-interaction-mode))
+;; (add-hook! org-mode
+;;   (jupyter-org-interaction-mode))
+(after! ob-jupyter
+  (require 'jupyter-org-client)
+  (jupyter-org-interaction-mode 1))
 #+END_SRC
 #+BEGIN_SRC emacs-lisp
   (add-to-list 'load-path "~/programs/julia")
@@ -1184,7 +1281,17 @@ Hopefully fixes crashes in repl:
 
 (advice-add #'jupyter-repl-font-lock-fontify-region :override #'jupyter-repl-font-lock-override)
 #+END_SRC
-
+ A fix that hopefully repairs  an issue after updating [2020-06-10 Mi]
+ From: [[https://discordapp.com/channels/406534637242810369/406554085794381833/720174512670376018][Discord]]
+#+BEGIN_SRC emacs-lisp
+(defadvice! fixed-zmq-start-process (orig-fn &rest args)
+  :around #'zmq-start-process
+  (letf! (defun make-process (&rest plist)
+           (plist-put! plist :coding (plist-get plist :coding-system))
+           (plist-delete! plist :coding-system)
+           (apply make-process plist))
+    (apply orig-fn args)))
+#+END_SRC
 ****    Run codeblocks without confirmation:
 #+BEGIN_SRC emacs-lisp
   (setq org-confirm-babel-evaluate nil)   ;don't prompt me to confirm everytime I want to evaluate a block
@@ -1479,6 +1586,11 @@ Not for real use, just here for demonstration purposes."
 (add-to-list 'org-ref-helm-user-candidates '("Open in Sci-hub" . org-ref-open-in-scihub))
 (add-to-list 'org-ref-helm-user-candidates '("Open in Emacs" . org-ref-open-pdf-at-point-in-emacs)))
 #+END_SRC
+
+Default ivy-bibtex should be to insert the citation and not to open PDF.
+#+BEGIN_SRC emacs-lisp
+(setq ivy-bibtex-default-action 'ivy-bibtex-insert-key)
+#+END_SRC
 *** Clever Ids
 When storing a link we want to use a link to the headlines ID.
 #+BEGIN_SRC emacs-lisp
@@ -1545,14 +1657,17 @@ When storing a link we want to use a link to the headlines ID.
 *** Org Journal
 Activated in doom init.
 #+BEGIN_SRC emacs-lisp
-(after! org-journal
+(use-package! org-journal
+  :custom
+   (org-journal-date-prefix "#+DATE:")
+   (org-journal-date-format "%A, %d %B %Y")
+   (org-journal-file-format "%Y-%m-%d.org")
+   (org-journal-dir "~/Documents/Research/zettel/")
+  :config
    (setq org-journal-file-type 'daily)
-   (setq org-journal-date-prefix "#+DATE:")
-   (setq org-journal-date-format "%A, %d %B %Y")
-   (setq org-journal-file-format "%Y-%m-%d.org")
-   (setq org-journal-dir org-roam-directory)
    (setq org-journal-enable-encryption nil)
    (setq org-journal-enable-agenda-integration t)
+   (setq org-journal-carryover-items "TODO=\"TODO\"|TODO=\"STRT\"|TODO=\"WAIT\"|TODO=\"[ ]\"TODO=\"[-]\"")
 )
 #+END_SRC
 *** Deft
@@ -1589,6 +1704,7 @@ It's also nice to make use of the Unicode characters for check boxes, and other 
               :end_quote    "❯"
               :begin_export "⯮"
               :end_export "⯬"
+              :jupyter-python ""
               :em_dash      "—"))
   (set-pretty-symbols! 'org-mode
     :merge t
@@ -1597,7 +1713,7 @@ It's also nice to make use of the Unicode characters for check boxes, and other 
     :checkedbox   "[X]"
     :results      "#+RESULTS:"
     :property     "#+PROPERTY:"
-    :property     ":PROPERTIES:"
+    :properties   ":PROPERTIES:"
     :logbook      ":LOGBOOK:"
     :end          ":END:"
     :options      "#+OPTIONS:"
@@ -1610,18 +1726,24 @@ It's also nice to make use of the Unicode characters for check boxes, and other 
     :end_quote    "#+END_QUOTE"
     :begin_export "#+BEGIN_EXPORT"
     :end_export   "#+END_EXPORT"
+    :jupyter-python "jupyter-python"
     :em_dash      "---")
 )
 (plist-put +pretty-code-symbols :name "⁍") ; or › could be good?
 #+END_SRC
+**** LaTeX Fragments
+:PROPERTIES:
+:ID:       93c8e12d-a01f-4942-a808-c2d4d4863a0e
+:END:
 We also like ~org-fragtog~, and that wants a hook.
 #+BEGIN_SRC emacs-lisp
 (add-hook 'org-mode-hook 'org-fragtog-mode)
 #+END_SRC
-**** LaTeX Fragments
-     Formula Preview
+     Formula Preview and highlights
  #+BEGIN_SRC emacs-lisp
-   (setq org-preview-latex-default-process 'dvipng)
+(setq org-preview-latex-default-process 'dvipng)
+(after! org
+  (setq org-highlight-latex-and-related '(native script entities)))
  #+END_SRC
 It's nice to customise the look of LaTeX fragments so they fit better in the
 text --- like this \(\sqrt{\beta^2+3}-\sum_{\phi=1}^\infty \frac{x^\phi-1}{\Gamma(ab)}\). Let's start by adding a sans font.
@@ -1652,13 +1774,14 @@ text --- like this \(\sqrt{\beta^2+3}-\sum_{\phi=1}^\infty \frac{x^\phi-1}{\Gamm
 \\usepackage{arev}
 \\usepackage{arevmath}")
 #+END_SRC
-Make sure colors change if theme changes.
+Make sure colors change if theme changes. TODO: test if necessary. If I did not
+notice a difference and stumble over this the next time, I should remove it.
 #+BEGIN_SRC emacs-lisp
 ;; (after! org
 ;; make background of fragments transparent
-  (let ((dvipng--plist (alist-get 'dvipng org-preview-latex-process-alist)))
-    (plist-put dvipng--plist :use-xcolor t)
-    (plist-put dvipng--plist :image-converter '("dvipng -D %D -bg 'transparent' -T tight -o %O %f")))
+  ;; (let ((dvipng--plist (alist-get 'dvipng org-preview-latex-process-alist)))
+  ;;   (plist-put dvipng--plist :use-xcolor t)
+  ;;   (plist-put dvipng--plist :image-converter '("dvipng -D %D -bg 'transparent' -T tight -o %O %f")))
 ;;   (add-hook! 'doom-load-theme-hook
 ;;     (defun +org-refresh-latex-background ()
 ;;       (plist-put! org-format-latex-options
@@ -1668,7 +1791,10 @@ Make sure colors change if theme changes.
 ;;                                   :background nil t))))
 ;; )
 #+END_SRC
-
+Slightly reduce the scale of latex previews
+#+BEGIN_SRC emacs-lisp
+(plist-put org-format-latex-options :scale 1.2) ; smaller larger previews
+#+END_SRC
 ***** Stolen from [[https://github.com/jkitchin/scimax][scimax]] (semi-working right now)
 I want fragment justification
 #+BEGIN_SRC emacs-lisp
@@ -1802,6 +1928,8 @@ I added this because pdfs opened with bibref would open in okular.
 :PROPERTIES:
 :ID:       cb44cef0-012a-4124-8b24-faea3c6b2b7c
 :END:
+**** Change todo of higher heading depending on sub todos
+NEEDS ~[/]~  or  [%] in main heading.
 This is from the org-mode docs
 https://orgmode.org/worg/org-hacks.html#mark-done-when-all-checkboxes-checked.
 It will change a todo state when all checkboxes in the list it's containing are toggled.
@@ -1837,6 +1965,23 @@ DONE as well. Taken from (https://emacs.stackexchange.com/questions/19843/how-to
 
 (add-hook 'org-after-todo-statistics-hook 'org-summary-todo)
 #+END_SRC
+**** Cycle todo status on ~C-c C-t~
+Now the key combo cycles the todo state within its sequence. The todo shortcuts
+are now available via the tag menu ~C-c C-q~.
+#+BEGIN_SRC emacs-lisp
+(setq org-fast-tag-selection-include-todo t)
+#+END_SRC
+*** Ditaa
+Ditaa is a java program that converts ascii art to diagrams:
+#+BEGIN_SRC emacs-lisp
+(after! org
+  (setq org-ditaa-jar-path "/usr/share/java/ditaa/ditaa-0.11.jar"))
+#+END_SRC
+*** Special Links
+Use ~org-colored-text~ from Kitchin
+#+BEGIN_SRC emacs-lisp
+(use-package! org-colored-text)
+#+END_SRC
 ** Mathpix
 #+BEGIN_SRC emacs-lisp
 ;; (use-package! mathpix.el
@@ -1865,7 +2010,7 @@ Recognise beancount files
   (add-hook 'beancount-mode-hook 'outline-minor-mode))
 #+END_SRC
 ** python
-LSP
+*** LSP
 #+BEGIN_SRC emacs-lisp :tangle yes
 ;; (use-package! lsp-ui
 ;;     :requires use-package-hydra
@@ -1873,17 +2018,17 @@ LSP
 ;;     :config
 ;;     (setq lsp-ui-sideline-enable t)
 ;; (setq flycheck-checker-error-threshold 10000)
+(after! lsp-ui
 (setq lsp-ui-flycheck-list-position 'right)
 (setq lsp-flycheck-live-reporting t)
-;; (setq lsp-ui-peek-enable t)
 (setq lsp-ui-peek-list-width 60)
 (setq lsp-ui-peek-peek-height 25)
 (setq lsp-ui-imenu-enable t)
+(setq lsp-ui-doc-enable t)
 (setq lsp-ui-doc-use-webkit t)
 ;; (setq lsp-enable-on-type-formatting nil)
-(setq lsp-ui-doc-enable t)
-;; (setq lsp-enable-completion-at-point t)
 (setq lsp-ui-doc-delay 0.1)
+)
 (after! lsp-python-ms (set-lsp-priority! 'mspyls 1))
 ;; (setq lsp-pyls-server-command '("mspyls"))
 ;; (setq lsp-ui-sideline-ignore-duplicate t)
@@ -1906,7 +2051,13 @@ LSP
 ;;                           (require 'lsp-python-ms)
 ;;                           (lsp))))
 #+END_SRC
-Jupyter
+*** Jupyter
+Try this to invoke ~jupyter-org-interaction-mode~ properly
+#+BEGIN_SRC emacs-lisp
+(after! ob-jupyter
+  (require 'jupyter))
+#+END_SRC
+Set up lookup handler in jupyter org
 #+BEGIN_SRC emacs-lisp
 (after! jupyter
   (set-lookup-handlers! '(jupyter-repl-mode jupyter-org-interaction-mode jupyter-repl-interaction-mode jupyter-repl-persistent-mode)
@@ -1915,6 +2066,7 @@ Jupyter
 ;;   :documentation #'jupyter-inspect-at-point
 ;;   )
 #+END_SRC
+*** Auto formatting
 Use blacken instead of ~SPC c f~ because it works better
 #+BEGIN_SRC emacs-lisp
 (use-package! blacken)
@@ -2019,7 +2171,7 @@ Set Dictionary from [[http://app.aspell.net/create]] (en_GB (-ize OED); 80;varia
 *** Which key popup
 make it quicker
 #+BEGIN_SRC emacs-lisp
-(setq which-key-idle-delay 0.5)
+(setq which-key-idle-delay 0.3)
 
 #+END_SRC
 Replacement  of evil prefix
@@ -2059,12 +2211,12 @@ for ~GFM~, otherwise let's just use ~markdown~.
   :init-value nil
   :keymap (list
            ;; Finish edit, but be smart in org mode
-           (cons (kbd "C-c C-c") (lambda! (if (and (eq major-mode 'org-mode)
+           (cons (kbd "C-c C-c") (cmd! (if (and (eq major-mode 'org-mode)
                                                    (org-in-src-block-p))
                                               (org-ctrl-c-ctrl-c)
                                             (delete-frame))))
            ;; Abort edit. emacs-anywhere saves the current edit for next time.
-           (cons (kbd "C-c C-k") (lambda! (setq ea-on nil)
+           (cons (kbd "C-c C-k") (cmd! (setq ea-on nil)
                                           (delete-frame))))
   (when emacs-anywhere-mode
     ;; line breaking
@@ -2072,8 +2224,8 @@ for ~GFM~, otherwise let's just use ~markdown~.
     (visual-line-mode t)
     ;; DEL/C-SPC to clear (first keystroke only)
     (set-transient-map (let ((keymap (make-sparse-keymap)))
-                         (define-key keymap (kbd "DEL")   (lambda! (delete-region (point-min) (point-max))))
-                         (define-key keymap (kbd "C-SPC") (lambda! (delete-region (point-min) (point-max))))
+                         (define-key keymap (kbd "DEL")   (cmd! (delete-region (point-min) (point-max))))
+                         (define-key keymap (kbd "C-SPC") (cmd! (delete-region (point-min) (point-max))))
                          keymap))
     ;; disable tabs
     (when (bound-and-true-p centaur-tabs-mode)
@@ -2147,4 +2299,18 @@ Set popup to open in right window
 Do not preview files literally but render images etc
 #+BEGIN_SRC emacs-lisp
 (setq ranger-show-literal nil)
+#+END_SRC
+** cdlatex
+Adding extra commands - Does not yet work
+#+BEGIN_SRC emacs-lisp
+;; (use-package! cdlatex
+;; :init
+;; (setq cdlatex-math-modify-alist '((?B "\\mathbb" nil t nil nil)))
+;; )
+#+END_SRC
+
+** YASnippet
+Try nested snippets
+#+BEGIN_SRC emacs-lisp
+(setq yas-triggers-in-field t)
 #+END_SRC

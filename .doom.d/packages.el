@@ -84,6 +84,10 @@
 (package! org-graph-view :recipe (:host github :repo "alphapapa/org-graph-view") :pin "13314338d7")
 
 (package! org-roam-server :recipe (:host github :repo "org-roam/org-roam-server" :files ("*")))
+
+;; (package! org-colored-text :recipe (:host github :repo "jkitchin/jmax" :files ("org-colored-text.el")))
+(package! org-colored-text :recipe (:local-repo "./modules/org"
+                                    :files ("org-colored-text.el")))
 ;; Org Ref
 (package! org-ref)
 (package! org-noter)
@@ -91,9 +95,9 @@
 ;; Python
 ;;
 ;; * Other
-
+(package! ob-translate)
 (package! popup-kill-ring)
-
+(package! ranger) ; load here to not modify dired too much
 (package! helm-org-rifle)
 (package! company-tabnine :disable t)
 (package! company-lsp :disable nil)
