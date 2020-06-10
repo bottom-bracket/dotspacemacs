@@ -21,7 +21,6 @@
        :desc "Abort commit" :n "a" #'with-editor-cancel)))
 
  ;; Keep old search prefix until I'm used to "s"
- :leader "/" doom-leader-search-map
 
  (:leader
    (:prefix "f"
